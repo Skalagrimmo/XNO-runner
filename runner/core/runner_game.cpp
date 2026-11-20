@@ -57,7 +57,7 @@ std::uint64_t RunnerGame::next_random() noexcept {
     return z ^ (z >> 31U);
 }
 
-void RunnerGame::spawn_ahead() noexcept {
+void RunnerGame::spawn_ahead() {
     const float spawn_limit = state_.distance + kSpawnLookAhead;
     while (next_spawn_distance_ <= spawn_limit) {
         const float spacing_range = config_.obstacle_max_spacing -
@@ -119,7 +119,7 @@ void RunnerGame::update_obstacles(float previous_distance) noexcept {
         obstacles_.end());
 }
 
-void RunnerGame::step(const RunnerInput& input, float delta_seconds) noexcept {
+void RunnerGame::step(const RunnerInput& input, float delta_seconds) {
     if (input.restart && state_.status == RunStatus::crashed) {
         reset(seed_);
         start();
@@ -153,12 +153,10 @@ void RunnerGame::step(const RunnerInput& input, float delta_seconds) noexcept {
     spawn_ahead();
     update_obstacles(previous_distance);
 
-    if (state_.status == RunStatus::running) {
-        const auto distance_score = static_cast<std::uint64_t>(
-            std::max(0.0F, state_.distance) * kScorePerMeter);
-        state_.score = distance_score +
-            state_.obstacles_cleared * kObstacleClearBonus;
-    }
+    const auto distance_score = static_cast<std::uint64_t>(
+        std::max(0.0F, state_.distance) * kScorePerMeter);
+    state_.score = distance_score +
+        state_.obstacles_cleared * kObstacleClearBonus;
 }
 
 } // namespace xno::runner
