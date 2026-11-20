@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <iostream>
 
+using xno::runner::HazardType;
 using xno::runner::RunStatus;
 using xno::runner::RunnerGame;
 using xno::runner::RunnerInput;
@@ -16,14 +17,18 @@ void step_many(RunnerGame& game, int count, RunnerInput input = {}) {
 }
 
 int main() {
-    // The same seed must produce the same upcoming obstacle sequence.
+    // The same seed must produce the same upcoming obstacle sequence and silhouettes.
     RunnerGame first(0x12345678ULL);
     RunnerGame second(0x12345678ULL);
     assert(first.obstacles().size() == second.obstacles().size());
     for (std::size_t i = 0; i < first.obstacles().size(); ++i) {
         assert(first.obstacles()[i].distance == second.obstacles()[i].distance);
         assert(first.obstacles()[i].blocked_lane == second.obstacles()[i].blocked_lane);
+        assert(first.obstacles()[i].type == second.obstacles()[i].type);
     }
+    assert(first.obstacles().size() >= 2);
+    assert(first.obstacles()[0].type == HazardType::fold_gate);
+    assert(first.obstacles()[1].type == HazardType::bit_chasm);
 
     // The run is inert until started, then advances on fixed simulation steps.
     assert(first.state().status == RunStatus::ready);
@@ -41,7 +46,6 @@ int main() {
     safe.start();
     int safe_delta = 0;
     if (first_obstacle.blocked_lane == 1) safe_delta = -1;
-    // If the center lane is not blocked, remain in the center.
     safe.step({.lane_delta = safe_delta}, 1.0F / 60.0F);
     const int travel_steps = static_cast<int>(
         std::ceil((first_obstacle.distance + 1.5F) / 8.0F * 60.0F));
@@ -82,16 +86,30 @@ int main() {
     step_many(crash, crash_steps);
     assert(crash.state().status == RunStatus::crashed);
     assert(crash.state().collision_obstacle_id == crash_obstacle.id);
+    assert(crash.state().crash_effect_elapsed == 0.0F);
     const auto expected_crash_score =
         static_cast<std::uint64_t>(crash.state().distance * 10.0F) +
         crash.state().obstacles_cleared * 250ULL;
     assert(crash.state().score == expected_crash_score);
 
+    // The crash effect timer advances while distance, score, and tick count stay frozen.
+    const float frozen_distance = crash.state().distance;
+    const std::uint64_t frozen_score = crash.state().score;
+    const std::uint64_t frozen_ticks = crash.state().simulation_ticks;
+    step_many(crash, 20);
+    assert(crash.state().crash_effect_elapsed > 0.0F);
+    assert(crash.state().distance == frozen_distance);
+    assert(crash.state().score == frozen_score);
+    assert(crash.state().simulation_ticks == frozen_ticks);
+    assert(crash.state().collision_obstacle_id == crash_obstacle.id);
+
     // A crashed run can be restarted with the same deterministic seed.
     crash.step({.restart = true}, 1.0F / 60.0F);
     assert(crash.state().status == RunStatus::running);
     assert(crash.state().distance == 0.0F);
+    assert(crash.state().crash_effect_elapsed == 0.0F);
     assert(crash.obstacles().front().blocked_lane == crash_obstacle.blocked_lane);
+    assert(crash.obstacles().front().type == crash_obstacle.type);
 
     std::cout << "XNO Runner core smoke tests passed.\n";
     return 0;
