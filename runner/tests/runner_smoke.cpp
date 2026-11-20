@@ -49,6 +49,24 @@ int main() {
     assert(safe.state().status == RunStatus::running);
     assert(safe.state().obstacles_cleared >= 1);
 
+    // Lane requests clamp at the left/right boundaries.
+    RunnerGame boundaries(0xFACEULL);
+    boundaries.start();
+    boundaries.step({.lane_delta = -1}, 1.0F / 60.0F);
+    step_many(boundaries, 30);
+    boundaries.step({.lane_delta = -1}, 1.0F / 60.0F);
+    assert(boundaries.state().target_lane == 0);
+    boundaries.step({.lane_delta = +1}, 1.0F / 60.0F);
+    assert(boundaries.state().target_lane == 1);
+
+    // Sprint changes speed, but does not change the deterministic obstacle stream.
+    RunnerGame sprinter(0x515052494E54ULL);
+    sprinter.start();
+    sprinter.step({.sprint = true}, 1.0F / 60.0F);
+    assert(sprinter.state().sprinting);
+    assert(sprinter.state().speed > 8.0F);
+    assert(sprinter.state().distance > 8.0F / 60.0F);
+
     // Deliberately enter the first obstacle's lane early and verify collision.
     RunnerGame crash(0xBADC0FFEEULL);
     const auto crash_obstacle = crash.obstacles().front();
@@ -64,6 +82,10 @@ int main() {
     step_many(crash, crash_steps);
     assert(crash.state().status == RunStatus::crashed);
     assert(crash.state().collision_obstacle_id == crash_obstacle.id);
+    const auto expected_crash_score =
+        static_cast<std::uint64_t>(crash.state().distance * 10.0F) +
+        crash.state().obstacles_cleared * 250ULL;
+    assert(crash.state().score == expected_crash_score);
 
     // A crashed run can be restarted with the same deterministic seed.
     crash.step({.restart = true}, 1.0F / 60.0F);
