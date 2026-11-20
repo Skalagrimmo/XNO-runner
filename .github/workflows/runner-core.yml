@@ -39,3 +39,21 @@ jobs:
           cl /nologo /std:c++20 /EHsc /W4 /WX /I. runner\core\runner_game.cpp runner\tests\runner_smoke.cpp /Fe:runner_smoke.exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           .\runner_smoke.exe
+
+  desktop-build:
+    name: Full desktop renderer / Ubuntu
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository and pinned engine
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Configure CMake
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+
+      - name: Build desktop runner and tests
+        run: cmake --build build --parallel 2
+
+      - name: Run native tests
+        run: ctest --test-dir build --output-on-failure
