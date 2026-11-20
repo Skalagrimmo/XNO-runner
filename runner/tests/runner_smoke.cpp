@@ -83,7 +83,11 @@ int main() {
     }
     const int crash_steps = static_cast<int>(
         std::ceil((crash_obstacle.distance + 1.0F) / 8.0F * 60.0F));
-    step_many(crash, crash_steps);
+    for (int step = 0;
+         step < crash_steps && crash.state().status != RunStatus::crashed;
+         ++step) {
+        crash.step({}, 1.0F / 60.0F);
+    }
     assert(crash.state().status == RunStatus::crashed);
     assert(crash.state().collision_obstacle_id == crash_obstacle.id);
     assert(crash.state().crash_effect_elapsed == 0.0F);
