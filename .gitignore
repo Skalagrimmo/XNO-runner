@@ -1,0 +1,22 @@
+# Native builds
+build/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+compile_commands.json
+
+# Android / Gradle
+.gradle/
+**/build/
+local.properties
+*.iml
+
+# IDEs
+.vscode/
+.idea/
+
+# Local diagnostics
+*.log
+*.profraw
+*.gcda
+*.gcno
