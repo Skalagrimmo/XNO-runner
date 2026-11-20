@@ -1,30 +1,30 @@
 # Proposed Architecture
 
-**Status:** initial boundaries; implementation not started.
+**Status:** M1 first pass implemented; renderer and app boundaries are in place.
 
 ## 1. Layering
 
     Android APK / Desktop build
               |
               v
-    Platform shell (SDL lifecycle, input, audio, clock)
+    SDL platform shell (lifecycle, input, clock)
               |
               v
-    Runner application (menu, run, pause, result flow)
+    XNO Runner application (ready / run / crash / restart)
               |
               +----------------------------+
               |                            |
               v                            v
-    Runner simulation                Vector renderer
-    (seed, movement,                 (corridor, hazards,
-     obstacles, collision,            HUD, effects)
+    Runner simulation                Upstream vector renderer
+    (seed, lanes,                    (corridor, vector HUD,
+     obstacles, collision,            perspective projection)
      distance, score)
               |
               v
-    Run result / replay record
+    Local run result / future replay record
               |
               v
-    Optional reward client adapter
+    Optional future reward adapter
               |
               v
     Remote validation + reward ledger + Nano payout service
@@ -33,42 +33,39 @@
 
 ### Runner simulation
 
-Owns the authoritative local rules for a run: seed, ruleset version, simulation time, player state, segment progression, obstacle state, collision, distance, and score. It must not depend on OpenGL or Android classes.
+Implemented in `runner/core/`. Owns seed, run state, player lane, forward distance, obstacle schedule, collision, sprint, and score. It has no SDL, OpenGL, Android, or Nano dependency.
 
 ### Vector renderer
 
-Consumes read-only runner state and emits visuals. Rendering must not decide collisions, add score, advance the simulation, or call blockchain APIs. It may interpolate between simulation states for smooth presentation.
+The M1 application reuses the pinned Permission Denied Native OpenGL/OpenGL ES renderer and feeds it a render-only camera state. The renderer remains read-only relative to the simulation. Dedicated runner hazard meshes and status overlays are not implemented yet.
 
 ### Platform shell
 
-Owns SDL lifecycle, surface/context creation, input acquisition, pause/resume, display-size changes, and audio focus. Platform-specific code must not contain runner scoring rules.
+Implemented in `runner/platform/`. Owns SDL window/context creation, events, Android touch input, desktop keyboard input, a fixed 60 Hz simulation accumulator, and presentation timing. Platform-specific code does not contain collision or scoring rules.
 
 ### Reward client adapter
 
-Optionally submits a completed run record when connectivity is available. It contains no private Nano keys, wallet seed, or block-signing operation. Submission failure never blocks local play.
+Not implemented. When added, it will optionally submit completed run records when online. It must contain no private Nano keys or block-signing operation. Submission failure must never block local play.
 
 ### Reward backend (future)
 
-Verifies run submissions, applies eligibility and anti-replay rules, maintains an auditable internal ledger, and coordinates payouts. It is outside the initial documentation-only bootstrap.
+Not implemented. It will validate run submissions, apply eligibility and anti-replay rules, maintain an auditable internal ledger, and coordinate payouts. It remains outside the game loop.
 
 ## 3. Clocks and determinism
 
-- Use a fixed-step simulation clock with bounded catch-up.
-- Rendering may use a variable frame rate and interpolate visual state.
-- Distance and score derive from simulation state, never the number of rendered frames.
-- Pause/resume is an explicit state transition; lifecycle gaps do not become free progress.
-- Each run fixes a unique run ID, seed, and ruleset version.
-- Use a specified PRNG and versioned generation rules.
-- A replay or evidence format must be defined before a client score can qualify for rewards.
+- Simulation advances at a fixed 60 Hz; rendering may run at a different rate.
+- Distance and score derive from simulation updates, never rendered frame count.
+- Each run fixes a seed; SplitMix64 drives obstacle lane and spacing selection without relying on implementation-defined standard-library RNG behavior.
+- A replay or evidence format must be defined before client scores can qualify for rewards.
+- Pause/resume and interrupted-run policy remain open test tasks.
 
 ## 4. Performance
 
-- Generate corridor segments incrementally instead of rebuilding the entire distant world every frame.
-- Cache static geometry where profiling demonstrates a gain.
-- Reuse transient geometry and simulation objects.
-- Keep expensive effects optional and profile low/medium settings on Android.
+- The current upstream renderer rebuilds and CPU-projects its test corridor geometry each frame.
+- Runner simulation uses a bounded obstacle look-ahead and removes resolved obstacles behind the player.
+- Generate corridor segments incrementally and cache static geometry only after profiling on Android.
 - Do not optimize based solely on desktop measurements.
 
 ## 5. Dependency boundary
 
-Use the upstream submodule as a pinned reference at first. The runner must eventually build reproducibly from its own repository. Sharing or extracting engine code must be an explicit milestone, not an accidental modification of Permission Denied.
+Use the upstream submodule as a pinned reference. The CMake project links against the upstream core and renderer while supplying its own app entry point. The upstream repository and its main branch remain unchanged. When source extraction begins, document every imported component and its source commit.
