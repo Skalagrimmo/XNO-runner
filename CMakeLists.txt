@@ -16,16 +16,17 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/upstream/permission-denied-native/CMa
         "git submodule update --init --recursive")
 endif()
 
-# Build the pinned upstream core and renderer as dependencies.
-# Its own app entry point is replaced below only for the Android target.
-add_subdirectory(upstream/permission-denied-native upstream-engine-build EXCLUDE_FROM_ALL)
+# Keep upstream core, renderer, SDL setup, and regression test targets available.
+# Its desktop app is not needed by this repository; XNO Runner provides its own.
+add_subdirectory(upstream/permission-denied-native upstream-engine-build)
+if(NOT ANDROID AND TARGET pd_desktop)
+    set_property(TARGET pd_desktop PROPERTY EXCLUDE_FROM_ALL TRUE)
+endif()
 
 add_library(xno_runner_core STATIC
     runner/core/runner_game.cpp
 )
-target_include_directories(xno_runner_core PUBLIC
-    "${CMAKE_CURRENT_SOURCE_DIR}"
-)
+target_include_directories(xno_runner_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_compile_features(xno_runner_core PUBLIC cxx_std_20)
 
 if(ANDROID)
@@ -33,8 +34,8 @@ if(ANDROID)
         message(FATAL_ERROR "Expected the upstream SDL Android shared target 'main'.")
     endif()
 
-    # Keep the upstream SDL/NDK/GL setup, but install this project's application
-    # entry point instead of the Permission Denied game loop.
+    # Keep upstream SDL/NDK/GL configuration and native linkage, but replace the
+    # Permission Denied entry point with the runner application.
     set_property(TARGET main PROPERTY SOURCES
         "${CMAKE_CURRENT_SOURCE_DIR}/runner/platform/runner_main.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/runner/platform/sdl_runner_application.cpp"
@@ -42,7 +43,6 @@ if(ANDROID)
     target_include_directories(main PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(main PRIVATE xno_runner_core)
     set_target_properties(main PROPERTIES OUTPUT_NAME "main")
-
     message(STATUS "XNO Runner target: Android arm64-v8a")
 else()
     add_executable(xno_runner_desktop
@@ -50,11 +50,7 @@ else()
         runner/platform/sdl_runner_application.cpp
     )
     target_include_directories(xno_runner_desktop PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(xno_runner_desktop PRIVATE
-        xno_runner_core
-        pd_core
-        pd_renderer
-    )
+    target_link_libraries(xno_runner_desktop PRIVATE xno_runner_core pd_core pd_renderer)
     set_target_properties(xno_runner_desktop PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
     )
