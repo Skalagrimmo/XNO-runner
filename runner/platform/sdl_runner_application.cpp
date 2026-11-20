@@ -20,14 +20,15 @@ constexpr double kFixedStep = 1.0 / 60.0;
 constexpr double kMaxFrameDelta = 0.25;
 
 struct KeyboardState {
-    bool sprint = false;
+    bool action_pending = false;
 };
 
 struct TouchState {
     SDL_FingerID stick_id = 0;
-    SDL_FingerID sprint_id = 0;
+    SDL_FingerID action_id = 0;
     bool stick_active = false;
-    bool sprint_active = false;
+    bool action_active = false;
+    bool action_pending = false;
     bool left_latched = false;
     bool right_latched = false;
     float move_x = 0.0F;
@@ -58,12 +59,13 @@ void finger_down(TouchState& touch, const SDL_TouchFingerEvent& finger, float as
     const float screen_x = finger.x * aspect;
     const float screen_y = 1.0F - finger.y;
 
-    const float sprint_dx = screen_x - aspect * 0.88F;
-    const float sprint_dy = screen_y - 0.21F;
-    if (!touch.sprint_active &&
-        std::sqrt(sprint_dx * sprint_dx + sprint_dy * sprint_dy) <= 0.23F) {
-        touch.sprint_active = true;
-        touch.sprint_id = finger.fingerID;
+    const float action_dx = screen_x - aspect * 0.88F;
+    const float action_dy = screen_y - 0.21F;
+    if (!touch.action_active &&
+        std::sqrt(action_dx * action_dx + action_dy * action_dy) <= 0.23F) {
+        touch.action_active = true;
+        touch.action_pending = true;
+        touch.action_id = finger.fingerID;
     }
 
     if (!touch.stick_active && screen_x < aspect * 0.43F && finger.y > 0.47F) {
@@ -87,8 +89,8 @@ void finger_up(TouchState& touch, const SDL_TouchFingerEvent& finger) {
         touch.left_latched = false;
         touch.right_latched = false;
     }
-    if (touch.sprint_active && touch.sprint_id == finger.fingerID) {
-        touch.sprint_active = false;
+    if (touch.action_active && touch.action_id == finger.fingerID) {
+        touch.action_active = false;
     }
 }
 
@@ -208,9 +210,9 @@ int SdlRunnerApplication::run() {
     SDL_Log("XNO Runner prototype initialized. Seed=%llu",
         static_cast<unsigned long long>(kRunSeed));
 #if defined(__ANDROID__)
-    SDL_Log("Touch: drag the lower-left stick to change lanes; hold the lower-right ring to sprint.");
+    SDL_Log("Touch: drag the lower-left stick to change lanes; tap the lower-right action ring for BIT_CHASM.");
 #else
-    SDL_Log("Controls: SPACE start/restart, A/LEFT and D/RIGHT change lanes, SHIFT sprint, ESC quit.");
+    SDL_Log("Controls: SPACE start/restart, A/LEFT and D/RIGHT change lanes, E contextual action, ESC quit.");
 #endif
 
     while (running) {
@@ -231,14 +233,11 @@ int SdlRunnerApplication::run() {
                         pending_lane_delta = -1;
                     } else if (event.key.key == SDLK_D || event.key.key == SDLK_RIGHT) {
                         pending_lane_delta = +1;
-                    } else if (event.key.key == SDLK_LSHIFT || event.key.key == SDLK_RSHIFT) {
-                        keyboard.sprint = true;
+                    } else if (event.key.key == SDLK_E) {
+                        keyboard.action_pending = true;
                     }
                     break;
                 case SDL_EVENT_KEY_UP:
-                    if (event.key.key == SDLK_LSHIFT || event.key.key == SDLK_RSHIFT) {
-                        keyboard.sprint = false;
-                    }
                     break;
                 case SDL_EVENT_FINGER_DOWN:
                 case SDL_EVENT_FINGER_MOTION:
@@ -291,11 +290,13 @@ int SdlRunnerApplication::run() {
             input.lane_delta = pending_lane_delta;
             input.start = start_pending;
             input.restart = restart_pending;
-            input.sprint = keyboard.sprint || touch.sprint_active;
+            input.action = keyboard.action_pending || touch.action_pending;
             game.step(input, static_cast<float>(kFixedStep));
             pending_lane_delta = 0;
             start_pending = false;
             restart_pending = false;
+            keyboard.action_pending = false;
+            touch.action_pending = false;
             accumulator -= kFixedStep;
         }
 
@@ -312,14 +313,19 @@ int SdlRunnerApplication::run() {
         touch_hud.move_x = touch.move_x;
         touch_hud.move_y = touch.move_y;
         touch_hud.move_active = touch.stick_active;
-        touch_hud.sprint_active = keyboard.sprint || touch.sprint_active;
 
         RunnerTouchOverlay hazard_touch{};
         hazard_touch.visible = touch_hud.visible;
         hazard_touch.move_x = touch_hud.move_x;
         hazard_touch.move_y = touch_hud.move_y;
         hazard_touch.move_active = touch_hud.move_active;
-        hazard_touch.sprint_active = touch_hud.sprint_active;
+        hazard_touch.action_available = game.action_available();
+        hazard_touch.action_active = touch.action_active;
+        hazard_touch.on_chasm_plate = game.state().on_chasm_plate;
+        hazard_touch.plate_time_remaining = game.state().on_chasm_plate
+            ? std::max(0.0F, game.config().chasm_plate_duration -
+                game.state().chasm_plate_elapsed)
+            : 0.0F;
         // Keep the upstream scene pass focused on the corridor; draw the touch
         // overlay last in the runner pass so it remains above nearby hazards.
         touch_hud.visible = false;
@@ -340,6 +346,11 @@ int SdlRunnerApplication::run() {
                 std::snprintf(title, sizeof(title),
                     "XNO RUNNER // CRASH // DIST %.1f m // SCORE %llu // SPACE TO RESTART",
                     state.distance, static_cast<unsigned long long>(state.score));
+            } else if (state.on_chasm_plate) {
+                std::snprintf(title, sizeof(title),
+                    "XNO RUNNER // BLINK AGAIN // %.2f s",
+                    std::max(0.0F, game.config().chasm_plate_duration -
+                        state.chasm_plate_elapsed));
             } else {
                 const RunnerObstacle* next = nullptr;
                 for (const auto& obstacle : game.obstacles()) {

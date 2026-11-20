@@ -19,7 +19,7 @@ enum class HazardType : std::uint8_t {
 struct RunnerObstacle {
     std::uint64_t id = 0;
     float distance = 0.0F;
-    int blocked_lane = 1; // 0 = left, 1 = centre, 2 = right
+    int blocked_lane = 1; // FOLD_GATE only: 0 = left, 1 = centre, 2 = right
     HazardType type = HazardType::fold_gate;
     bool resolved = false;
 };
@@ -28,20 +28,23 @@ struct RunnerInput {
     int lane_delta = 0; // -1 or +1; applied as a discrete lane request
     bool start = false;
     bool restart = false;
-    bool sprint = false;
+    bool action = false; // edge-triggered contextual action
 };
 
 struct RunnerConfig {
     float base_speed = 8.0F;
     float max_speed = 15.0F;
     float speed_ramp_per_second = 0.12F;
-    float sprint_multiplier = 1.25F;
     float lane_change_speed = 5.0F; // lane widths per second
     float obstacle_first_distance = 24.0F;
     float obstacle_min_spacing = 18.0F;
     float obstacle_max_spacing = 24.0F;
     float collision_half_depth = 0.55F;
     float collision_half_lane = 0.36F;
+    float chasm_action_distance = 7.0F;
+    float chasm_plate_duration = 1.15F;
+    float chasm_plate_stop_offset = 0.90F;
+    float chasm_exit_offset = 2.80F;
 };
 
 struct RunnerState {
@@ -52,11 +55,14 @@ struct RunnerState {
     float elapsed_seconds = 0.0F;
     float speed = 0.0F;
     float crash_effect_elapsed = 0.0F;
+    float chasm_plate_elapsed = 0.0F;
     std::uint64_t score = 0;
     std::uint64_t simulation_ticks = 0;
     std::uint64_t obstacles_cleared = 0;
     std::uint64_t collision_obstacle_id = 0;
-    bool sprinting = false;
+    std::uint64_t active_chasm_obstacle_id = 0;
+    int active_chasm_lane = 1;
+    bool on_chasm_plate = false;
 };
 
 class RunnerGame final {
@@ -73,6 +79,7 @@ public:
     }
     [[nodiscard]] std::uint64_t seed() const noexcept { return seed_; }
     [[nodiscard]] const RunnerConfig& config() const noexcept { return config_; }
+    [[nodiscard]] bool action_available() const noexcept;
 
 private:
     [[nodiscard]] std::uint64_t next_random() noexcept;

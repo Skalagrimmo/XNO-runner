@@ -450,13 +450,24 @@ private:
     }
 
     void add_screen_circle(float cx, float cy, float radius, const Color& color) {
-        constexpr int segments = 28;
+        add_screen_arc(cx, cy, radius, 0.0F, 2.0F * kPi, color, 28);
+    }
+
+    void add_screen_arc(
+        float cx,
+        float cy,
+        float radius,
+        float start_angle,
+        float end_angle,
+        const Color& color,
+        int segments) {
         const float inverse_aspect = height_ / width_;
-        for (int index = 0; index < segments; ++index) {
-            const float angle0 = static_cast<float>(index) /
-                static_cast<float>(segments) * 2.0F * kPi;
-            const float angle1 = static_cast<float>(index + 1) /
-                static_cast<float>(segments) * 2.0F * kPi;
+        const int count = std::max(segments, 1);
+        for (int index = 0; index < count; ++index) {
+            const float t0 = static_cast<float>(index) / static_cast<float>(count);
+            const float t1 = static_cast<float>(index + 1) / static_cast<float>(count);
+            const float angle0 = start_angle + (end_angle - start_angle) * t0;
+            const float angle1 = start_angle + (end_angle - start_angle) * t1;
             add_screen_line(
                 cx + std::cos(angle0) * radius * inverse_aspect,
                 cy + std::sin(angle0) * radius,
@@ -539,45 +550,63 @@ private:
         constexpr Color cyan{0.04F, 0.54F, 0.63F};
         constexpr Color amber{1.0F, 0.43F, 0.08F};
         constexpr Color danger{1.0F, 0.15F, 0.30F};
-        const float center_x = 2.5F +
-            static_cast<float>(obstacle.blocked_lane - 1) * 2.65F;
+        constexpr float left_edge = -1.45F;
+        constexpr float right_edge = 6.45F;
+        const float center_x = 2.5F;
         const float z = 2.5F + obstacle.distance;
-        const float fall = smooth_step(0.18F, 0.95F, progress) * 0.72F;
+        const bool anchored = game_.state().on_chasm_plate &&
+            game_.state().active_chasm_obstacle_id == obstacle.id;
+        const float plate_progress = anchored
+            ? std::clamp(game_.state().chasm_plate_elapsed /
+                game_.config().chasm_plate_duration, 0.0F, 1.0F)
+            : 0.0F;
+        const float collapse = anchored
+            ? 1.0F
+            : smooth_step(0.18F, 0.95F, progress);
         const float spread = progress * 0.11F;
-        const Color edge = mix_color(cyan, danger, smooth_step(0.55F, 1.0F, progress));
+        const Color edge = mix_color(cyan, danger,
+            anchored ? plate_progress : smooth_step(0.55F, 1.0F, progress));
 
-        // A dark inset occludes the corridor floor grid; individual plates then drop into it.
+        // This is a full-corridor gap, not a lane-blocking floor tile.
         add_quad(
-            center_x - 1.18F, 0.035F, z - 1.15F,
-            center_x + 1.18F, 0.035F, z + 1.15F,
+            left_edge, 0.035F, z - 1.35F,
+            right_edge, 0.035F, z + 1.35F,
             void_color);
 
-        add_line({center_x - 1.18F, 0.07F, z - 1.15F},
-                 {center_x - 1.18F, 0.07F, z + 1.15F}, edge);
-        add_line({center_x + 1.18F, 0.07F, z - 1.15F},
-                 {center_x + 1.18F, 0.07F, z + 1.15F}, edge);
-        add_line({center_x - 1.18F, 0.07F, z - 1.15F},
-                 {center_x - 0.63F, 0.07F, z - 1.15F}, amber);
-        add_line({center_x + 0.63F, 0.07F, z + 1.15F},
-                 {center_x + 1.18F, 0.07F, z + 1.15F}, amber);
+        add_line({left_edge, 0.07F, z - 1.35F},
+                 {left_edge, 0.07F, z + 1.35F}, edge);
+        add_line({right_edge, 0.07F, z - 1.35F},
+                 {right_edge, 0.07F, z + 1.35F}, edge);
+        add_line({left_edge, 0.07F, z - 1.35F},
+                 {left_edge + 0.75F, 0.07F, z - 1.35F}, amber);
+        add_line({right_edge - 0.75F, 0.07F, z + 1.35F},
+                 {right_edge, 0.07F, z + 1.35F}, amber);
 
-        for (int column = 0; column < 4; ++column) {
-            const float column_offset = (static_cast<float>(column) - 1.5F) * 0.56F;
-            for (int row = 0; row < 2; ++row) {
-                const float row_offset = (static_cast<float>(row) - 0.5F) * 0.98F;
+        constexpr int columns = 8;
+        constexpr int rows = 3;
+        const float tile_width = (right_edge - left_edge) /
+            static_cast<float>(columns);
+        for (int column = 0; column < columns; ++column) {
+            for (int row = 0; row < rows; ++row) {
                 const float parity = ((column + row) % 2 == 0) ? 1.0F : -1.0F;
-                const float tile_x = center_x + column_offset + parity * spread;
-                const float tile_z = z + row_offset + parity * spread * 0.7F;
-                const float tile_y = 0.045F - fall *
+                const float tile_x = left_edge +
+                    (static_cast<float>(column) + 0.5F) * tile_width +
+                    parity * spread;
+                const float tile_z = z +
+                    (static_cast<float>(row) - 1.0F) * 0.82F +
+                    parity * spread * 0.65F;
+                const float tile_fall = collapse *
                     (0.42F + static_cast<float>((column + row) % 3) * 0.10F);
-                const float half_width = 0.245F;
-                const float half_depth = 0.42F;
+                const float tile_y = 0.045F - tile_fall;
+                const float half_width = tile_width * 0.43F;
+                const float half_depth = 0.34F;
                 add_quad(
                     tile_x - half_width, tile_y, tile_z - half_depth,
                     tile_x + half_width, tile_y, tile_z + half_depth,
                     plate_color);
 
-                const Color tile_edge = progress > 0.72F ? danger : edge;
+                const Color tile_edge = anchored && collapse < 0.4F
+                    ? amber : edge;
                 add_line({tile_x - half_width, tile_y, tile_z - half_depth},
                          {tile_x + half_width, tile_y, tile_z - half_depth}, tile_edge);
                 add_line({tile_x + half_width, tile_y, tile_z - half_depth},
@@ -589,14 +618,58 @@ private:
             }
         }
 
-        // Small deterministic data fragments fall below the opening.
-        for (int fragment = 0; fragment < 7; ++fragment) {
-            const float lateral = (static_cast<float>(fragment) - 3.0F) * 0.27F;
-            const float depth = (static_cast<float>(fragment % 3) - 1.0F) * 0.43F;
-            const float drop = fall * (0.35F + static_cast<float>(fragment % 4) * 0.12F);
+        if (anchored) {
+            const float anchor_x = 2.5F +
+                static_cast<float>(game_.state().active_chasm_lane - 1) * 2.65F;
+            const float half_width = 0.92F;
+            const Color anchor_edge = mix_color(amber, danger, plate_progress);
+            const Color anchor_fill = mix_color(plate_color,
+                Color{0.10F, 0.075F, 0.035F}, plate_progress * 0.55F);
+
+            // The one tile under the player is held in place while its perimeter
+            // fractures. The shrinking timer is mirrored by the red edge glow.
+            add_quad(
+                anchor_x - half_width, 0.17F, z - 1.00F,
+                anchor_x + half_width, 0.17F, z + 1.00F,
+                anchor_fill);
+            add_line({anchor_x - half_width, 0.18F, z - 1.00F},
+                     {anchor_x + half_width, 0.18F, z - 1.00F}, anchor_edge);
+            add_line({anchor_x + half_width, 0.18F, z - 1.00F},
+                     {anchor_x + half_width, 0.18F, z + 1.00F}, anchor_edge);
+            add_line({anchor_x + half_width, 0.18F, z + 1.00F},
+                     {anchor_x - half_width, 0.18F, z + 1.00F}, anchor_edge);
+            add_line({anchor_x - half_width, 0.18F, z + 1.00F},
+                     {anchor_x - half_width, 0.18F, z - 1.00F}, anchor_edge);
+
+            const float crack = 0.18F + plate_progress * 0.42F;
+            add_line({anchor_x - crack, 0.19F, z - 0.45F},
+                     {anchor_x + 0.05F, 0.19F, z - 0.05F}, danger);
+            add_line({anchor_x + 0.05F, 0.19F, z - 0.05F},
+                     {anchor_x - 0.02F, 0.19F, z + 0.48F}, danger);
+            add_line({anchor_x + 0.18F, 0.19F, z + 0.05F},
+                     {anchor_x + crack, 0.19F, z + 0.35F}, danger);
+
+            // A compact vector frame marks the selected anchor tile.
+            add_line({anchor_x - 0.20F, 0.24F, z - 0.16F},
+                     {anchor_x, 0.50F, z}, anchor_edge);
+            add_line({anchor_x, 0.50F, z},
+                     {anchor_x + 0.20F, 0.24F, z + 0.16F}, anchor_edge);
+            add_line({anchor_x + 0.20F, 0.24F, z + 0.16F},
+                     {anchor_x, 0.24F, z + 0.32F}, anchor_edge);
+            add_line({anchor_x, 0.24F, z + 0.32F},
+                     {anchor_x - 0.20F, 0.24F, z - 0.16F}, anchor_edge);
+        }
+
+        // Deterministic data fragments continue falling around the anchored plate.
+        for (int fragment = 0; fragment < 12; ++fragment) {
+            const float lateral = (static_cast<float>(fragment) - 5.5F) * 0.48F;
+            const float depth = (static_cast<float>(fragment % 3) - 1.0F) * 0.78F;
+            const float drop = collapse *
+                (0.35F + static_cast<float>(fragment % 4) * 0.12F);
             const float x = center_x + lateral;
             const float y = 0.02F - drop;
-            const float fragment_z = z + depth + spread * static_cast<float>(fragment % 2);
+            const float fragment_z = z + depth +
+                spread * static_cast<float>(fragment % 2);
             add_line({x - 0.045F, y, fragment_z},
                      {x + 0.045F, y - 0.07F, fragment_z}, amber);
             add_line({x + 0.045F, y - 0.07F, fragment_z},
@@ -604,10 +677,10 @@ private:
         }
 
         if (approach > 5.0F) {
-            add_line({center_x - 0.5F, 0.09F, z - 1.42F},
-                     {center_x, 0.09F, z - 1.05F}, amber);
-            add_line({center_x + 0.5F, 0.09F, z - 1.42F},
-                     {center_x, 0.09F, z - 1.05F}, amber);
+            add_line({left_edge + 0.2F, 0.09F, z - 1.62F},
+                     {center_x, 0.09F, z - 1.20F}, amber);
+            add_line({right_edge - 0.2F, 0.09F, z - 1.62F},
+                     {center_x, 0.09F, z - 1.20F}, amber);
         }
     }
 
@@ -660,6 +733,8 @@ private:
         constexpr Color cyan{0.08F, 0.78F, 0.88F};
         constexpr Color bright{0.28F, 0.96F, 0.98F};
         constexpr Color muted{0.04F, 0.42F, 0.52F};
+        constexpr Color amber{1.0F, 0.58F, 0.12F};
+        constexpr Color danger{1.0F, 0.18F, 0.30F};
         const float inverse_aspect = height_ / width_;
         const float stick_x = 0.16F + touch.move_x * 0.066F * inverse_aspect;
         const float stick_y = 0.21F + touch.move_y * 0.066F;
@@ -671,11 +746,34 @@ private:
                         0.16F + 0.018F * inverse_aspect, 0.21F, muted);
         add_screen_line(0.16F, 0.192F, 0.16F, 0.228F, muted);
 
-        const Color sprint_color = touch.sprint_active ? bright : cyan;
+        const Color action_color = touch.action_active
+            ? bright
+            : (touch.on_chasm_plate
+                ? mix_color(amber, danger, 1.0F -
+                    std::clamp(touch.plate_time_remaining / 1.15F, 0.0F, 1.0F))
+                : (touch.action_available ? bright : cyan));
         add_screen_circle(0.88F, 0.21F, 0.154F, muted);
-        add_screen_circle(0.88F, 0.21F, 0.136F, sprint_color);
-        add_screen_line(0.88F, 0.184F, 0.88F, 0.236F, sprint_color);
-        add_screen_line(0.868F, 0.210F, 0.892F, 0.210F, sprint_color);
+        add_screen_circle(0.88F, 0.21F, 0.136F, action_color);
+
+        // The paired chevrons read as a short-range blink/anchor action.
+        add_screen_line(0.858F, 0.225F, 0.880F, 0.247F, action_color);
+        add_screen_line(0.880F, 0.247F, 0.902F, 0.225F, action_color);
+        add_screen_line(0.858F, 0.195F, 0.880F, 0.173F, action_color);
+        add_screen_line(0.880F, 0.173F, 0.902F, 0.195F, action_color);
+
+        if (touch.on_chasm_plate) {
+            const float fraction = std::clamp(
+                touch.plate_time_remaining / 1.15F, 0.0F, 1.0F);
+            add_screen_arc(
+                0.88F, 0.21F, 0.151F,
+                -0.5F * kPi,
+                -0.5F * kPi + 2.0F * kPi * fraction,
+                danger,
+                28);
+        } else if (touch.action_available) {
+            add_screen_arc(0.88F, 0.21F, 0.151F,
+                -0.25F * kPi, 1.25F * kPi, bright, 24);
+        }
     }
 
     const RunnerGame& game_;

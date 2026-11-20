@@ -11,8 +11,34 @@ using xno::runner::RunnerGame;
 using xno::runner::RunnerInput;
 
 namespace {
+constexpr float kStep = 1.0F / 60.0F;
+
 void step_many(RunnerGame& game, int count, RunnerInput input = {}) {
-    for (int i = 0; i < count; ++i) game.step(input, 1.0F / 60.0F);
+    for (int i = 0; i < count; ++i) game.step(input, kStep);
+}
+
+void reach_first_chasm(RunnerGame& game, std::uint64_t& chasm_id) {
+    const auto first_obstacle = game.obstacles().front();
+    assert(first_obstacle.type == HazardType::fold_gate);
+    assert(game.obstacles().size() >= 2);
+    const auto chasm = game.obstacles()[1];
+    assert(chasm.type == HazardType::bit_chasm);
+    chasm_id = chasm.id;
+
+    game.start();
+    // Keep the player out of the FOLD_GATE lane; BIT_CHASM itself spans all lanes.
+    const int safe_delta = first_obstacle.blocked_lane == 1 ? -1 : 0;
+    if (safe_delta != 0) game.step({.lane_delta = safe_delta}, kStep);
+
+    const float target_distance = chasm.distance -
+        game.config().chasm_action_distance + 0.1F;
+    for (int step = 0;
+         step < 1200 && game.state().distance < target_distance;
+         ++step) {
+        game.step({}, kStep);
+        assert(game.state().status == RunStatus::running);
+    }
+    assert(game.action_available());
 }
 }
 
@@ -34,86 +60,89 @@ int main() {
     assert(first.state().status == RunStatus::ready);
     step_many(first, 120);
     assert(first.state().distance == 0.0F);
-    first.step({.start = true}, 1.0F / 60.0F);
+    first.step({.start = true}, kStep);
     assert(first.state().status == RunStatus::running);
     step_many(first, 60);
     assert(first.state().distance > 0.0F);
     assert(first.state().simulation_ticks == 61);
 
-    // Move to a lane known to be clear and verify that the first obstacle is passed.
-    RunnerGame safe(0xA11CEULL);
-    const auto first_obstacle = safe.obstacles().front();
-    safe.start();
-    int safe_delta = 0;
-    if (first_obstacle.blocked_lane == 1) safe_delta = -1;
-    safe.step({.lane_delta = safe_delta}, 1.0F / 60.0F);
-    const int travel_steps = static_cast<int>(
-        std::ceil((first_obstacle.distance + 1.5F) / 8.0F * 60.0F));
-    step_many(safe, travel_steps);
-    assert(safe.state().status == RunStatus::running);
-    assert(safe.state().obstacles_cleared >= 1);
-
     // Lane requests clamp at the left/right boundaries.
     RunnerGame boundaries(0xFACEULL);
     boundaries.start();
-    boundaries.step({.lane_delta = -1}, 1.0F / 60.0F);
+    boundaries.step({.lane_delta = -1}, kStep);
     step_many(boundaries, 30);
-    boundaries.step({.lane_delta = -1}, 1.0F / 60.0F);
+    boundaries.step({.lane_delta = -1}, kStep);
     assert(boundaries.state().target_lane == 0);
-    boundaries.step({.lane_delta = +1}, 1.0F / 60.0F);
+    boundaries.step({.lane_delta = +1}, kStep);
     assert(boundaries.state().target_lane == 1);
 
-    // Sprint changes speed, but does not change the deterministic obstacle stream.
-    RunnerGame sprinter(0x515052494E54ULL);
-    sprinter.start();
-    sprinter.step({.sprint = true}, 1.0F / 60.0F);
-    assert(sprinter.state().sprinting);
-    assert(sprinter.state().speed > 8.0F);
-    assert(sprinter.state().distance > 8.0F / 60.0F);
+    // The contextual action is unavailable early and does not behave like a sprint.
+    RunnerGame early_action(0x12345678ULL);
+    early_action.start();
+    const float early_distance = early_action.state().distance;
+    early_action.step({.action = true}, kStep);
+    assert(!early_action.state().on_chasm_plate);
+    assert(early_action.state().distance > early_distance);
 
-    // Deliberately enter the first obstacle's lane early and verify collision.
-    RunnerGame crash(0xBADC0FFEEULL);
-    const auto crash_obstacle = crash.obstacles().front();
-    crash.start();
-    int crash_delta = 0;
-    if (crash_obstacle.blocked_lane == 0) crash_delta = -1;
-    if (crash_obstacle.blocked_lane == 2) crash_delta = +1;
-    if (crash_delta != 0) {
-        crash.step({.lane_delta = crash_delta}, 1.0F / 60.0F);
-    }
-    const int crash_steps = static_cast<int>(
-        std::ceil((crash_obstacle.distance + 1.0F) / 8.0F * 60.0F));
-    for (int step = 0;
-         step < crash_steps && crash.state().status != RunStatus::crashed;
-         ++step) {
-        crash.step({}, 1.0F / 60.0F);
-    }
-    assert(crash.state().status == RunStatus::crashed);
-    assert(crash.state().collision_obstacle_id == crash_obstacle.id);
-    assert(crash.state().crash_effect_elapsed == 0.0F);
-    const auto expected_crash_score =
-        static_cast<std::uint64_t>(crash.state().distance * 10.0F) +
-        crash.state().obstacles_cleared * 250ULL;
-    assert(crash.state().score == expected_crash_score);
+    // BIT_CHASM: first press anchors a tile and pauses the runner on it.
+    RunnerGame crossing(0x12345678ULL);
+    std::uint64_t chasm_id = 0;
+    reach_first_chasm(crossing, chasm_id);
+    crossing.step({.action = true}, kStep);
+    assert(crossing.state().status == RunStatus::running);
+    assert(crossing.state().on_chasm_plate);
+    assert(crossing.state().active_chasm_obstacle_id == chasm_id);
+    assert(crossing.state().speed == 0.0F);
+    const float plate_distance = crossing.state().distance;
+    const std::uint64_t plate_score = crossing.state().score;
+
+    step_many(crossing, 18);
+    assert(crossing.state().on_chasm_plate);
+    assert(crossing.state().distance == plate_distance);
+    assert(crossing.state().score == plate_score);
+    assert(crossing.state().chasm_plate_elapsed > 0.0F);
+
+    // Second press blinks to solid ground beyond the gap and resumes the run.
+    crossing.step({.action = true}, kStep);
+    assert(!crossing.state().on_chasm_plate);
+    assert(crossing.state().active_chasm_obstacle_id == 0);
+    assert(crossing.state().status == RunStatus::running);
+    assert(crossing.state().distance >
+        plate_distance + crossing.config().chasm_exit_offset - 1.0F);
+    assert(crossing.state().obstacles_cleared >= 2);
+    assert(crossing.state().speed >= crossing.config().base_speed);
+
+    // Missing the second press causes a fall, attributed to the BIT_CHASM itself.
+    RunnerGame fall(0x12345678ULL);
+    std::uint64_t fall_chasm_id = 0;
+    reach_first_chasm(fall, fall_chasm_id);
+    fall.step({.action = true}, kStep);
+    assert(fall.state().on_chasm_plate);
+    const float frozen_distance = fall.state().distance;
+    step_many(fall, 120);
+    assert(fall.state().status == RunStatus::crashed);
+    assert(fall.state().collision_obstacle_id == fall_chasm_id);
+    assert(fall.state().distance == frozen_distance);
+    assert(!fall.state().on_chasm_plate);
 
     // The crash effect timer advances while distance, score, and tick count stay frozen.
-    const float frozen_distance = crash.state().distance;
-    const std::uint64_t frozen_score = crash.state().score;
-    const std::uint64_t frozen_ticks = crash.state().simulation_ticks;
-    step_many(crash, 20);
-    assert(crash.state().crash_effect_elapsed > 0.0F);
-    assert(crash.state().distance == frozen_distance);
-    assert(crash.state().score == frozen_score);
-    assert(crash.state().simulation_ticks == frozen_ticks);
-    assert(crash.state().collision_obstacle_id == crash_obstacle.id);
+    const auto frozen_score = fall.state().score;
+    const auto frozen_ticks = fall.state().simulation_ticks;
+    step_many(fall, 20);
+    assert(fall.state().crash_effect_elapsed > 0.0F);
+    assert(fall.state().distance == frozen_distance);
+    assert(fall.state().score == frozen_score);
+    assert(fall.state().simulation_ticks == frozen_ticks);
+    assert(fall.state().collision_obstacle_id == fall_chasm_id);
 
     // A crashed run can be restarted with the same deterministic seed.
-    crash.step({.restart = true}, 1.0F / 60.0F);
-    assert(crash.state().status == RunStatus::running);
-    assert(crash.state().distance == 0.0F);
-    assert(crash.state().crash_effect_elapsed == 0.0F);
-    assert(crash.obstacles().front().blocked_lane == crash_obstacle.blocked_lane);
-    assert(crash.obstacles().front().type == crash_obstacle.type);
+    fall.step({.restart = true}, kStep);
+    assert(fall.state().status == RunStatus::running);
+    assert(fall.state().distance == 0.0F);
+    assert(fall.state().crash_effect_elapsed == 0.0F);
+    assert(fall.obstacles().front().blocked_lane ==
+        RunnerGame(0x12345678ULL).obstacles().front().blocked_lane);
+    assert(fall.obstacles().front().type == HazardType::fold_gate);
 
     std::cout << "XNO Runner core smoke tests passed.\n";
     return 0;

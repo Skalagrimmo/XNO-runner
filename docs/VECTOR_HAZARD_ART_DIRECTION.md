@@ -42,7 +42,14 @@ The TRON-like inspiration is limited to the abstract digital-grid mood and the i
 4. Open gap: a dark interruption with animated falling fragments and bright edge rails.
 5. Recovery: distant plates reassemble only after the player has passed.
 
-**Gameplay in M1:** treat the chasm as a lane-blocking hazard, so it can be avoided by changing lanes. A jump mechanic may later turn it into a full-width timing challenge. Do not silently require a jump before that control exists.
+**Signature gameplay mechanic:** BIT_CHASM spans the full corridor and cannot be bypassed by changing lanes. When the player enters the contextual-action window, the right action button becomes available:
+
+1. First press — ANCHOR. A single plate in the player's current lane locks in mid-void, and the player blinks onto it.
+2. The run's forward distance pauses. The plate visibly fractures and its fixed-time collapse timer continues.
+3. Second press — BLINK. The player teleports from the plate to solid ground beyond the gap.
+4. If the second press does not arrive before the plate collapses, the player falls and the run ends.
+
+Only BIT_CHASM owns this two-stage action. It is not a universal dodge, jump, or ability for other hazard families. The first press is valid only inside the approach window; pressing too early or after the edge has no effect.
 
 ### C. Iris / spider gate — IRIS_GATE
 
@@ -99,7 +106,11 @@ The effect is presentation only. It must not determine the collision, alter scor
 - Each hazard is recognizable from its silhouette at phone resolution.
 - Warning → deployment → active → passed states are visually distinct.
 - The same seed and simulation tick reproduce the same hazard geometry.
-- A player can identify the blocked lane before entering the collision window.
+- FOLD_GATE's blocked lane is readable before its collision window.
+- BIT_CHASM visibly spans all three lanes and is not avoidable through lateral movement.
+- The first contextual press stabilizes a plate in the current lane and freezes forward distance.
+- The second contextual press completes the teleport to solid ground before the fixed timer expires.
+- Missing the second press produces a deterministic BIT_CHASM fall.
 - Collision rules and visual deployment remain synchronized.
 - The bit-disintegration effect runs only after a confirmed crash and never changes the run result.
 - Hazards are tested on the existing SM-J710F baseline before increasing line count or animation complexity.

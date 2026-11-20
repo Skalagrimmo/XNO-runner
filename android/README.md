@@ -38,7 +38,7 @@ Debug application ID: com.skalagrimmo.xnorunner.dev
 
 ## Input
 
-- Desktop: SPACE starts/restarts; A/LEFT and D/RIGHT change lanes; SHIFT sprints; ESC exits.
-- Android: drag the lower-left virtual stick left/right to change lanes; hold the lower-right ring to sprint; tap to start/restart.
+- Desktop: SPACE starts/restarts; A/LEFT and D/RIGHT change lanes; E performs the contextual action; ESC exits.
+- Android: drag the lower-left virtual stick left/right to change lanes; tap the lower-right action ring; tap to start/restart.
 
-The first iteration reuses the existing vector corridor and touch HUD. Hazard simulation is present in the native runner core, but dedicated 3D hazard meshes and an on-screen score/status panel are still pending.
+BIT_CHASM is a full-width traversal hazard. The first action press anchors a temporary plate in the player's current lane and blinks onto it. A second press blinks to solid ground beyond the gap. The plate collapses after a short fixed-time window; missing the second press causes a fall. FOLD_GATE remains a lane-avoidance hazard. Both hazard families are rendered in the runner-owned vector pass.

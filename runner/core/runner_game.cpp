@@ -16,6 +16,12 @@ float approach(float current, float target, float amount) noexcept {
     if (current < target) return std::min(current + amount, target);
     return std::max(current - amount, target);
 }
+
+std::uint64_t calculate_score(const RunnerState& state) noexcept {
+    const auto distance_score = static_cast<std::uint64_t>(
+        std::max(0.0F, state.distance) * kScorePerMeter);
+    return distance_score + state.obstacles_cleared * kObstacleClearBonus;
+}
 } // namespace
 
 RunnerGame::RunnerGame(std::uint64_t seed, RunnerConfig config)
@@ -23,13 +29,17 @@ RunnerGame::RunnerGame(std::uint64_t seed, RunnerConfig config)
     config_.base_speed = std::max(config_.base_speed, 0.1F);
     config_.max_speed = std::max(config_.max_speed, config_.base_speed);
     config_.speed_ramp_per_second = std::max(config_.speed_ramp_per_second, 0.0F);
-    config_.sprint_multiplier = std::max(config_.sprint_multiplier, 1.0F);
     config_.lane_change_speed = std::max(config_.lane_change_speed, 0.1F);
     config_.obstacle_min_spacing = std::max(config_.obstacle_min_spacing, 4.0F);
     config_.obstacle_max_spacing = std::max(
         config_.obstacle_max_spacing, config_.obstacle_min_spacing);
     config_.collision_half_depth = std::max(config_.collision_half_depth, 0.05F);
     config_.collision_half_lane = std::max(config_.collision_half_lane, 0.05F);
+    config_.chasm_action_distance = std::max(
+        config_.chasm_action_distance, config_.collision_half_depth + 0.1F);
+    config_.chasm_plate_duration = std::max(config_.chasm_plate_duration, 0.2F);
+    config_.chasm_plate_stop_offset = std::max(config_.chasm_plate_stop_offset, 0.1F);
+    config_.chasm_exit_offset = std::max(config_.chasm_exit_offset, 1.5F);
     reset(seed);
 }
 
@@ -104,11 +114,15 @@ void RunnerGame::update_obstacles(float previous_distance) noexcept {
         const float lateral_error = std::abs(state_.lane_position - blocked_lane_position);
         obstacle.resolved = true;
 
-        if (lateral_error <= config_.collision_half_lane) {
+        // BIT_CHASM spans the entire corridor. It can only be crossed by its
+        // two-stage contextual action; changing lanes is deliberately not enough.
+        const bool hit = obstacle.type == HazardType::bit_chasm ||
+            lateral_error <= config_.collision_half_lane;
+        if (hit) {
             state_.status = RunStatus::crashed;
             state_.collision_obstacle_id = obstacle.id;
             state_.crash_effect_elapsed = 0.0F;
-            state_.sprinting = false;
+            state_.speed = 0.0F;
             return;
         }
 
@@ -125,6 +139,21 @@ void RunnerGame::update_obstacles(float previous_distance) noexcept {
                     obstacle.distance + kObstacleRetireDistance < state_.distance;
             }),
         obstacles_.end());
+}
+
+bool RunnerGame::action_available() const noexcept {
+    if (state_.status != RunStatus::running) return false;
+    if (state_.on_chasm_plate) return true;
+
+    for (const auto& obstacle : obstacles_) {
+        if (obstacle.resolved) continue;
+        if (obstacle.type != HazardType::bit_chasm) return false;
+
+        const float approach_distance = obstacle.distance - state_.distance;
+        return approach_distance <= config_.chasm_action_distance &&
+            approach_distance > config_.collision_half_depth;
+    }
+    return false;
 }
 
 void RunnerGame::step(const RunnerInput& input, float delta_seconds) {
@@ -148,6 +177,74 @@ void RunnerGame::step(const RunnerInput& input, float delta_seconds) {
     }
     if (state_.status != RunStatus::running) return;
 
+    // The player is physically on the anchored tile. World movement and score
+    // pause, but the tile's collapse timer continues at the fixed simulation rate.
+    if (state_.on_chasm_plate) {
+        if (input.action) {
+            const auto active = std::find_if(
+                obstacles_.begin(),
+                obstacles_.end(),
+                [this](const RunnerObstacle& obstacle) {
+                    return obstacle.id == state_.active_chasm_obstacle_id &&
+                        !obstacle.resolved &&
+                        obstacle.type == HazardType::bit_chasm;
+                });
+            if (active != obstacles_.end() &&
+                state_.chasm_plate_elapsed < config_.chasm_plate_duration) {
+                active->resolved = true;
+                state_.on_chasm_plate = false;
+                state_.active_chasm_obstacle_id = 0;
+                state_.chasm_plate_elapsed = 0.0F;
+                state_.distance = active->distance + config_.chasm_exit_offset;
+                state_.speed = std::min(
+                    config_.base_speed + state_.elapsed_seconds * config_.speed_ramp_per_second,
+                    config_.max_speed);
+                ++state_.obstacles_cleared;
+                state_.elapsed_seconds += dt;
+                ++state_.simulation_ticks;
+                spawn_ahead();
+                state_.score = calculate_score(state_);
+                return;
+            }
+        }
+
+        state_.chasm_plate_elapsed = std::min(
+            state_.chasm_plate_elapsed + dt, config_.chasm_plate_duration);
+        ++state_.simulation_ticks;
+        if (state_.chasm_plate_elapsed >= config_.chasm_plate_duration) {
+            state_.status = RunStatus::crashed;
+            state_.collision_obstacle_id = state_.active_chasm_obstacle_id;
+            state_.crash_effect_elapsed = 0.0F;
+            state_.on_chasm_plate = false;
+            state_.speed = 0.0F;
+        }
+        return;
+    }
+
+    // First press: anchor a plate in the player's current lane and blink onto it.
+    // Only the next unresolved obstacle may be activated, and only in its approach
+    // window; pressing early or after the edge has no effect.
+    if (input.action) {
+        for (const auto& obstacle : obstacles_) {
+            if (obstacle.resolved) continue;
+            if (obstacle.type != HazardType::bit_chasm) break;
+
+            const float approach_distance = obstacle.distance - state_.distance;
+            if (approach_distance <= config_.chasm_action_distance &&
+                approach_distance > config_.collision_half_depth) {
+                state_.on_chasm_plate = true;
+                state_.active_chasm_obstacle_id = obstacle.id;
+                state_.active_chasm_lane = state_.target_lane;
+                state_.lane_position = static_cast<float>(state_.target_lane - 1);
+                state_.distance = obstacle.distance - config_.chasm_plate_stop_offset;
+                state_.speed = 0.0F;
+                state_.chasm_plate_elapsed = 0.0F;
+            }
+            break;
+        }
+        if (state_.on_chasm_plate) return;
+    }
+
     if (input.lane_delta < 0) {
         state_.target_lane = std::max(0, state_.target_lane - 1);
     } else if (input.lane_delta > 0) {
@@ -155,11 +252,9 @@ void RunnerGame::step(const RunnerInput& input, float delta_seconds) {
     }
 
     const float previous_distance = state_.distance;
-    state_.sprinting = input.sprint;
-    const float ramped_speed = std::min(
+    state_.speed = std::min(
         config_.base_speed + state_.elapsed_seconds * config_.speed_ramp_per_second,
         config_.max_speed);
-    state_.speed = ramped_speed * (state_.sprinting ? config_.sprint_multiplier : 1.0F);
 
     update_lane(dt);
     state_.distance += state_.speed * dt;
@@ -167,11 +262,7 @@ void RunnerGame::step(const RunnerInput& input, float delta_seconds) {
     ++state_.simulation_ticks;
     spawn_ahead();
     update_obstacles(previous_distance);
-
-    const auto distance_score = static_cast<std::uint64_t>(
-        std::max(0.0F, state_.distance) * kScorePerMeter);
-    state_.score = distance_score +
-        state_.obstacles_cleared * kObstacleClearBonus;
+    state_.score = calculate_score(state_);
 }
 
 } // namespace xno::runner

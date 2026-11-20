@@ -11,21 +11,22 @@
 - Deterministic SplitMix64 obstacle generation with a per-run seed.
 - Three lanes with smooth transitions and bounds.
 - Automatic forward movement and a gradual speed ramp.
-- Hold-to-sprint multiplier.
+- A contextual action input replacing sprint.
 - Distance-derived score and obstacle-clear bonus.
-- Collision detection against a blocked lane.
+- FOLD_GATE lane collision and full-width BIT_CHASM collision.
 - Deterministic alternation of FOLD_GATE and BIT_CHASM hazard families without consuming extra obstacle RNG state.
+- BIT_CHASM two-stage ANCHOR/BLINK traversal: first press stabilizes a plate in the current lane and pauses forward movement; second press teleports to solid ground; missing the fixed-time window causes a fall.
 - Restart with the original seed.
-- A runner-local OpenGL vector pass for articulated FOLD_GATE arms, dark BIT_CHASM insets, falling floor plates, and warning edges.
+- A runner-local OpenGL vector pass for articulated FOLD_GATE arms, a full-width BIT_CHASM void, falling floor plates, an anchored temporary plate, and warning edges.
 - A BIT_DISINTEGRATION crash effect whose fragments are derived from run seed and collision obstacle ID.
 - A crash presentation timer that advances while world distance, score, and simulation ticks remain frozen.
 - SDL application using the pinned Permission Denied Native corridor renderer; the runner draws its own touch overlay after hazards.
 - Fixed 60 Hz simulation loop, separate from rendering.
-- Desktop keyboard controls and Android virtual-stick/sprint controls.
+- Desktop keyboard controls and Android virtual-stick/contextual-action controls.
 
 ## Deliberate limits
 
-The existing corridor remains the continuous environment. Hazard geometry is implemented in a separate runner-owned OpenGL pass using the corridor's camera projection; no source inside the pinned upstream submodule is changed. Desktop window title reports run metrics and the next hazard. A dedicated in-game score/lane HUD is still pending, and the new render pass has not yet been validated on the SM-J710F or another Android device. This remains an engineering prototype, not a release candidate.
+The existing corridor remains the continuous environment. Hazard geometry and the contextual BIT_CHASM action are implemented in separate runner-owned simulation/rendering code using the corridor's camera projection; no source inside the pinned upstream submodule is changed. Desktop window title reports run metrics and the next hazard. A dedicated in-game score/lane HUD is still pending, and the updated traversal still requires direct device playtesting on the SM-J710F or another Android device. This remains an engineering prototype, not a release candidate.
 
 No wallet, Nano RPC, work-generation, network permission, backend, or reward transaction code is included.
 
@@ -49,8 +50,8 @@ Android (Windows):
 - SPACE: start/restart.
 - A / LEFT: move one lane left.
 - D / RIGHT: move one lane right.
-- SHIFT: sprint.
-- Android: lower-left stick left/right changes lanes; lower-right ring sprints; tap starts/restarts.
+- E: contextual ANCHOR/BLINK action for BIT_CHASM.
+- Android: lower-left stick left/right changes lanes; tap the lower-right action ring. Near BIT_CHASM, tap once to anchor/blink onto the plate and tap again before it collapses to blink to solid ground; tap elsewhere to start/restart.
 
 ## Test coverage
 

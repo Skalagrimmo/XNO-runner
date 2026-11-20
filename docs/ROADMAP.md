@@ -24,7 +24,9 @@
 - [x] Derive distance and score from simulation state, not rendered frame count.
 - [x] Define an original vector-hazard art direction: unfolding mechanisms, bit chasms, iris gates, and a digital disintegration fail effect.
 - [x] Render the FOLD_GATE obstacle as the first animated vector hazard.
-- [x] Render BIT_CHASM floor plates and falling fragments.
+- [x] Render BIT_CHASM as a full-width gap with falling floor plates and fragments.
+- [x] Add its signature two-stage ANCHOR/BLINK traversal with a timed temporary plate and deterministic fall on failure.
+- [x] Replace the sprint control with a contextual action button.
 - [x] Add the BIT_DISINTEGRATION crash effect.
 - [x] Render obstacle geometry and distance-driven animation in an isolated runner vector pass.
 - [ ] Add an on-screen score, lane, and next-hazard indicator.

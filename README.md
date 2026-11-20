@@ -2,7 +2,7 @@
 
 **Working title.** An Android-first vector-corridor runner based on the native rendering and Android foundation of [Permission Denied — Native Engine](https://github.com/Skalagrimmo/Permission-Denied-Native), with a future optional Nano (XNO) skill-reward layer.
 
-**Status:** M1 engineering prototype on branch `m1-runner-prototype`. The repository now contains an independent deterministic runner simulation, an SDL application entry point, desktop/Android build orchestration, and native smoke tests. It is not yet a player-ready release: vector obstacle meshes and an on-screen status panel remain open.
+**Status:** M1 engineering prototype on branch `m1-runner-prototype`. The repository contains an independent deterministic runner simulation, a first-person SDL corridor application, Android/desktop build orchestration, two rendered hazard families, and native smoke tests. The next validation step is direct device playtesting and control tuning.
 
 ## Why this is separate
 
@@ -18,12 +18,12 @@ The upstream reference is pinned at commit `c536555d78f6ed8753b9dc707f7c7f18f205
 - A perspective wireframe corridor, vector HUD accents, and world-space 5×7 ASCII signage.
 - An Android arm64-v8a target with a thin SDL Activity shell.
 
-The M1 branch adds its own `xno::runner::RunnerGame` simulation: deterministic obstacles, three lanes, smooth lane transitions, forward movement, sprint, distance/score, collision, and restart. A dedicated SDL application maps keyboard and Android touch input to the runner while reusing the pinned OpenGL corridor renderer.
+The M1 branch adds its own `xno::runner::RunnerGame` simulation: deterministic obstacles, three lanes, smooth lane transitions, forward movement, distance/score, collision, restart, and a contextual two-stage BIT_CHASM traversal. A dedicated SDL application maps keyboard and Android touch input to the runner while reusing the pinned OpenGL corridor renderer.
 
 ## Current controls
 
-- Desktop: SPACE starts/restarts; A/LEFT and D/RIGHT change lanes; SHIFT sprints; ESC exits.
-- Android: tap starts/restarts; drag the lower-left virtual stick left/right to change lanes; hold the lower-right ring to sprint.
+- Desktop: SPACE starts/restarts; A/LEFT and D/RIGHT change lanes; E performs the contextual action; ESC exits.
+- Android: tap starts/restarts; drag the lower-left virtual stick left/right to change lanes; tap the lower-right action ring. Near a BIT_CHASM, tap once to anchor/blink onto a plate and tap again before it collapses to blink to solid ground.
 
 ## Build and test
 
@@ -41,7 +41,7 @@ Android build notes are in [android/README.md](android/README.md).
 
 ## Current limitations
 
-The runner currently reuses the corridor as its continuous visual environment. Obstacle collision is implemented and tested in the simulation, but dedicated 3D obstacle meshes and a visible score/next-hazard HUD are not finished. Desktop diagnostics appear in the window title; Android logging is diagnostic, not a player-facing UI.
+The runner currently reuses the corridor as its continuous visual environment and adds runner-owned vector geometry for FOLD_GATE and BIT_CHASM, plus the BIT_DISINTEGRATION failure effect. The score/next-hazard HUD and direct device performance tuning remain open. Desktop diagnostics appear in the window title; Android uses a compact vector touch overlay.
 
 No wallet, Nano RPC, proof-of-work, backend, internet permission, or payout code is present. The game is designed to remain offline and playable without XNO integration.
 

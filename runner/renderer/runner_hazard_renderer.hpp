@@ -11,7 +11,10 @@ struct RunnerTouchOverlay {
     float move_x = 0.0F;
     float move_y = 0.0F;
     bool move_active = false;
-    bool sprint_active = false;
+    bool action_available = false;
+    bool action_active = false;
+    bool on_chasm_plate = false;
+    float plate_time_remaining = 0.0F;
 };
 
 class RunnerHazardRenderer final {
