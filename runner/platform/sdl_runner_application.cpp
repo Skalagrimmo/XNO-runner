@@ -3,6 +3,7 @@
 #include "pd/core/game.hpp"
 #include "pd/renderer/opengl_renderer.hpp"
 #include "runner/core/runner_game.hpp"
+#include "runner/renderer/runner_hazard_renderer.hpp"
 
 #include <SDL3/SDL.h>
 
@@ -103,6 +104,14 @@ const char* lane_name(int lane) noexcept {
     }
 }
 
+const char* hazard_name(HazardType type) noexcept {
+    switch (type) {
+        case HazardType::bit_chasm: return "BIT CHASM";
+        case HazardType::fold_gate: return "FOLD GATE";
+    }
+    return "UNKNOWN";
+}
+
 pd::core::GameState make_render_state(const RunnerState& state) {
     pd::core::GameState render_state{};
     render_state.player.x = 2.5F + state.lane_position * 2.65F;
@@ -172,6 +181,16 @@ int SdlRunnerApplication::run() {
         SDL_DestroyWindow(window);
         SDL_Quit();
         return 5;
+    }
+
+    RunnerHazardRenderer hazard_renderer;
+    if (!hazard_renderer.initialize()) {
+        SDL_LogCritical(SDL_LOG_CATEGORY_APPLICATION, "Runner hazard renderer initialization failed");
+        renderer.shutdown();
+        SDL_GL_DestroyContext(gl_context);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return 6;
     }
 
     constexpr std::uint64_t kRunSeed = 0x584E4F52554E4E52ULL; // "XNORUNNR"
@@ -284,6 +303,7 @@ int SdlRunnerApplication::run() {
         int height = 0;
         SDL_GetWindowSizeInPixels(window, &width, &height);
         renderer.resize(width, height);
+        hazard_renderer.resize(width, height);
 
         pd::renderer::TouchHudState touch_hud{};
 #if defined(__ANDROID__)
@@ -294,8 +314,19 @@ int SdlRunnerApplication::run() {
         touch_hud.move_active = touch.stick_active;
         touch_hud.sprint_active = keyboard.sprint || touch.sprint_active;
 
+        RunnerTouchOverlay hazard_touch{};
+        hazard_touch.visible = touch_hud.visible;
+        hazard_touch.move_x = touch_hud.move_x;
+        hazard_touch.move_y = touch_hud.move_y;
+        hazard_touch.move_active = touch_hud.move_active;
+        hazard_touch.sprint_active = touch_hud.sprint_active;
+        // Keep the upstream scene pass focused on the corridor; draw the touch
+        // overlay last in the runner pass so it remains above nearby hazards.
+        touch_hud.visible = false;
+
         const auto render_state = make_render_state(game.state());
         renderer.render(render_state, static_cast<float>(game.state().elapsed_seconds), touch_hud);
+        hazard_renderer.render(game, hazard_touch);
         SDL_GL_SwapWindow(window);
 
         const double title_elapsed = std::chrono::duration<double>(now - title_time).count();
@@ -316,9 +347,10 @@ int SdlRunnerApplication::run() {
                 }
                 if (next != nullptr) {
                     std::snprintf(title, sizeof(title),
-                        "XNO RUNNER // %.1f m // SCORE %llu // LANE %s // NEXT %s IN %.1f m",
+                        "XNO RUNNER // %.1f m // SCORE %llu // LANE %s // NEXT %s / %s IN %.1f m",
                         state.distance, static_cast<unsigned long long>(state.score),
-                        lane_name(state.target_lane), lane_name(next->blocked_lane),
+                        lane_name(state.target_lane), hazard_name(next->type),
+                        lane_name(next->blocked_lane),
                         std::max(0.0F, next->distance - state.distance));
                 } else {
                     std::snprintf(title, sizeof(title), "XNO RUNNER // %.1f m // SCORE %llu",
@@ -330,6 +362,7 @@ int SdlRunnerApplication::run() {
         }
     }
 
+    hazard_renderer.shutdown();
     renderer.shutdown();
     SDL_GL_DestroyContext(gl_context);
     SDL_DestroyWindow(window);
