@@ -1,0 +1,3 @@
+[submodule "upstream/permission-denied-native"]
+	path = upstream/permission-denied-native
+	url = https://github.com/Skalagrimmo/Permission-Denied-Native.git
