@@ -18,6 +18,7 @@
 - BIT_CHASM two-stage ANCHOR/BLINK traversal: first press stabilizes a plate in the current lane and pauses forward movement; second press teleports to solid ground; missing the fixed-time window causes a fall.
 - Restart with the original seed.
 - A runner-local OpenGL vector pass for articulated FOLD_GATE arms, a full-width BIT_CHASM void, falling floor plates, an anchored temporary plate, and warning edges.
+- A compact 5×7 vector HUD for distance, score, lane, next hazard, contextual ANCHOR/BLINK prompts, and plate countdown; shared between desktop and Android.
 - A BIT_DISINTEGRATION crash effect whose fragments are derived from run seed and collision obstacle ID.
 - A crash presentation timer that advances while world distance, score, and simulation ticks remain frozen.
 - SDL application using the pinned Permission Denied Native corridor renderer; the runner draws its own touch overlay after hazards.
@@ -26,7 +27,7 @@
 
 ## Deliberate limits
 
-The existing corridor remains the continuous environment. Hazard geometry and the contextual BIT_CHASM action are implemented in separate runner-owned simulation/rendering code using the corridor's camera projection; no source inside the pinned upstream submodule is changed. Desktop window title reports run metrics and the next hazard. A dedicated in-game score/lane HUD is still pending, and the updated traversal still requires direct device playtesting on the SM-J710F or another Android device. This remains an engineering prototype, not a release candidate.
+The existing corridor remains the continuous environment. Hazard geometry and the contextual BIT_CHASM action are implemented in separate runner-owned simulation/rendering code using the corridor's camera projection; no source inside the pinned upstream submodule is changed. The in-game vector HUD reports distance, score, lane, and next hazard; its contextual prompt changes from ANCHOR to BLINK while the player is on the temporary plate. Desktop window title remains supplemental diagnostics. The updated HUD and traversal still require direct device playtesting on the SM-J710F or another Android device. This remains an engineering prototype, not a release candidate.
 
 No wallet, Nano RPC, work-generation, network permission, backend, or reward transaction code is included.
 
@@ -55,4 +56,4 @@ Android (Windows):
 
 ## Test coverage
 
-The smoke test covers deterministic obstacle placement and hazard-family order, inert ready state, fixed-step progression, safe obstacle pass, collision, frozen world state during the crash effect, and restart. The current core workflow compiles the simulation and tests; the desktop-build workflow compiles the full renderer/application. Neither substitutes for a device playtest.
+The smoke test covers deterministic obstacle placement and hazard-family order, inert ready state, fixed-step progression, safe obstacle pass, BIT_CHASM's successful two-press traversal and timeout fall, frozen world state during the crash effect, and restart. The current core workflow compiles the simulation and tests; the desktop-build workflow compiles the full renderer/application. Neither substitutes for a device playtest.

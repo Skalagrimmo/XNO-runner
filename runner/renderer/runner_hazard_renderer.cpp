@@ -7,7 +7,9 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace xno::runner::platform {
@@ -313,6 +315,7 @@ public:
                 }
             }
         }
+        add_game_hud();
         if (touch.visible) add_touch_hud(touch);
     }
 
@@ -436,6 +439,173 @@ private:
             x1 * 2.0F - 1.0F, y1 * 2.0F - 1.0F, -0.985F,
             color.r, color.g, color.b
         });
+    }
+
+    [[nodiscard]] static std::array<std::uint8_t, 7> glyph_rows(char character) noexcept {
+        switch (character) {
+            case '0': return {0x0EU, 0x11U, 0x13U, 0x15U, 0x19U, 0x11U, 0x0EU};
+            case '1': return {0x04U, 0x0CU, 0x04U, 0x04U, 0x04U, 0x04U, 0x0EU};
+            case '2': return {0x0EU, 0x11U, 0x01U, 0x02U, 0x04U, 0x08U, 0x1FU};
+            case '3': return {0x1EU, 0x01U, 0x01U, 0x0EU, 0x01U, 0x01U, 0x1EU};
+            case '4': return {0x02U, 0x06U, 0x0AU, 0x12U, 0x1FU, 0x02U, 0x02U};
+            case '5': return {0x1FU, 0x10U, 0x10U, 0x1EU, 0x01U, 0x01U, 0x1EU};
+            case '6': return {0x06U, 0x08U, 0x10U, 0x1EU, 0x11U, 0x11U, 0x0EU};
+            case '7': return {0x1FU, 0x01U, 0x02U, 0x04U, 0x08U, 0x08U, 0x08U};
+            case '8': return {0x0EU, 0x11U, 0x11U, 0x0EU, 0x11U, 0x11U, 0x0EU};
+            case '9': return {0x0EU, 0x11U, 0x11U, 0x0FU, 0x01U, 0x02U, 0x0CU};
+            case 'A': return {0x0EU, 0x11U, 0x11U, 0x1FU, 0x11U, 0x11U, 0x11U};
+            case 'B': return {0x1EU, 0x11U, 0x11U, 0x1EU, 0x11U, 0x11U, 0x1EU};
+            case 'C': return {0x0EU, 0x11U, 0x10U, 0x10U, 0x10U, 0x11U, 0x0EU};
+            case 'D': return {0x1CU, 0x12U, 0x11U, 0x11U, 0x11U, 0x12U, 0x1CU};
+            case 'E': return {0x1FU, 0x10U, 0x10U, 0x1EU, 0x10U, 0x10U, 0x1FU};
+            case 'F': return {0x1FU, 0x10U, 0x10U, 0x1EU, 0x10U, 0x10U, 0x10U};
+            case 'G': return {0x0EU, 0x11U, 0x10U, 0x17U, 0x11U, 0x11U, 0x0FU};
+            case 'H': return {0x11U, 0x11U, 0x11U, 0x1FU, 0x11U, 0x11U, 0x11U};
+            case 'I': return {0x0EU, 0x04U, 0x04U, 0x04U, 0x04U, 0x04U, 0x0EU};
+            case 'J': return {0x07U, 0x02U, 0x02U, 0x02U, 0x12U, 0x12U, 0x0CU};
+            case 'K': return {0x11U, 0x12U, 0x14U, 0x18U, 0x14U, 0x12U, 0x11U};
+            case 'L': return {0x10U, 0x10U, 0x10U, 0x10U, 0x10U, 0x10U, 0x1FU};
+            case 'M': return {0x11U, 0x1BU, 0x15U, 0x15U, 0x11U, 0x11U, 0x11U};
+            case 'N': return {0x11U, 0x19U, 0x15U, 0x13U, 0x11U, 0x11U, 0x11U};
+            case 'O': return {0x0EU, 0x11U, 0x11U, 0x11U, 0x11U, 0x11U, 0x0EU};
+            case 'P': return {0x1EU, 0x11U, 0x11U, 0x1EU, 0x10U, 0x10U, 0x10U};
+            case 'Q': return {0x0EU, 0x11U, 0x11U, 0x11U, 0x15U, 0x12U, 0x0DU};
+            case 'R': return {0x1EU, 0x11U, 0x11U, 0x1EU, 0x14U, 0x12U, 0x11U};
+            case 'S': return {0x0FU, 0x10U, 0x10U, 0x0EU, 0x01U, 0x01U, 0x1EU};
+            case 'T': return {0x1FU, 0x04U, 0x04U, 0x04U, 0x04U, 0x04U, 0x04U};
+            case 'U': return {0x11U, 0x11U, 0x11U, 0x11U, 0x11U, 0x11U, 0x0EU};
+            case 'V': return {0x11U, 0x11U, 0x11U, 0x11U, 0x11U, 0x0AU, 0x04U};
+            case 'W': return {0x11U, 0x11U, 0x11U, 0x15U, 0x15U, 0x15U, 0x0AU};
+            case 'X': return {0x11U, 0x11U, 0x0AU, 0x04U, 0x0AU, 0x11U, 0x11U};
+            case 'Y': return {0x11U, 0x11U, 0x0AU, 0x04U, 0x04U, 0x04U, 0x04U};
+            case 'Z': return {0x1FU, 0x01U, 0x02U, 0x04U, 0x08U, 0x10U, 0x1FU};
+            case ':': return {0x00U, 0x04U, 0x04U, 0x00U, 0x04U, 0x04U, 0x00U};
+            case '.': return {0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x0CU, 0x0CU};
+            case '-': return {0x00U, 0x00U, 0x00U, 0x1FU, 0x00U, 0x00U, 0x00U};
+            case '/': return {0x01U, 0x02U, 0x02U, 0x04U, 0x08U, 0x08U, 0x10U};
+            default: return {};
+        }
+    }
+
+    void add_screen_text(
+        std::string_view text,
+        float x,
+        float top_y,
+        float cell_height,
+        const Color& color) {
+        const float cell_width = cell_height * (height_ / width_);
+        const float character_advance = cell_width * 6.0F;
+        for (std::size_t index = 0; index < text.size(); ++index) {
+            const auto rows = glyph_rows(text[index]);
+            const float character_x = x + static_cast<float>(index) * character_advance;
+            for (std::size_t row = 0; row < rows.size(); ++row) {
+                for (int column = 0; column < 5; ++column) {
+                    const std::uint8_t mask = static_cast<std::uint8_t>(1U << (4 - column));
+                    if ((rows[row] & mask) == 0U) continue;
+                    const float pixel_x = character_x +
+                        static_cast<float>(column) * cell_width;
+                    const float pixel_y = top_y -
+                        (static_cast<float>(row) + 0.5F) * cell_height;
+                    const float pixel_width = cell_width * 0.78F;
+                    const float thickness = cell_height * 0.12F;
+                    add_screen_line(pixel_x, pixel_y - thickness,
+                        pixel_x + pixel_width, pixel_y - thickness, color);
+                    add_screen_line(pixel_x, pixel_y + thickness,
+                        pixel_x + pixel_width, pixel_y + thickness, color);
+                }
+            }
+        }
+    }
+
+    void add_centered_screen_text(
+        std::string_view text,
+        float center_x,
+        float top_y,
+        float cell_height,
+        const Color& color) {
+        const float cell_width = cell_height * (height_ / width_);
+        const float total_width = static_cast<float>(text.size()) * cell_width * 6.0F;
+        add_screen_text(text, center_x - total_width * 0.5F,
+            top_y, cell_height, color);
+    }
+
+    void add_game_hud() {
+        constexpr Color cyan{0.08F, 0.72F, 0.82F};
+        constexpr Color muted{0.035F, 0.28F, 0.36F};
+        constexpr Color amber{1.0F, 0.55F, 0.12F};
+        constexpr Color danger{1.0F, 0.18F, 0.30F};
+        const RunnerState& state = game_.state();
+
+        if (state.status == RunStatus::ready) {
+            add_centered_screen_text("XNO RUNNER", 0.5F, 0.60F, 0.014F, cyan);
+            add_centered_screen_text("TAP TO START", 0.5F, 0.50F, 0.008F, amber);
+            return;
+        }
+
+        char distance_text[24]{};
+        char score_text[24]{};
+        std::snprintf(distance_text, sizeof(distance_text),
+            "DIST %.1fM", static_cast<double>(state.distance));
+        std::snprintf(score_text, sizeof(score_text),
+            "SCORE %07llu", static_cast<unsigned long long>(state.score));
+
+        add_screen_text(distance_text, 0.035F, 0.965F, 0.0055F, cyan);
+        add_screen_text(score_text, 0.035F, 0.905F, 0.0055F, amber);
+
+        const char* lane = state.target_lane == 0
+            ? "LEFT" : (state.target_lane == 2 ? "RIGHT" : "CENTER");
+        char lane_text[20]{};
+        std::snprintf(lane_text, sizeof(lane_text), "LANE %s", lane);
+        add_screen_text(lane_text, 0.665F, 0.965F, 0.0055F, cyan);
+
+        const RunnerObstacle* next = nullptr;
+        for (const RunnerObstacle& obstacle : game_.obstacles()) {
+            if (!obstacle.resolved) {
+                next = &obstacle;
+                break;
+            }
+        }
+
+        char next_text[32]{};
+        if (next != nullptr) {
+            const double approach = std::max(
+                0.0F, next->distance - state.distance);
+            if (next->type == HazardType::bit_chasm) {
+                std::snprintf(next_text, sizeof(next_text),
+                    "NEXT BIT CHASM %.1fM", approach);
+            } else {
+                const char* side = next->blocked_lane == 0
+                    ? "L" : (next->blocked_lane == 2 ? "R" : "C");
+                std::snprintf(next_text, sizeof(next_text),
+                    "NEXT FOLD %s %.1fM", side, approach);
+            }
+        } else {
+            std::snprintf(next_text, sizeof(next_text), "NEXT CLEAR");
+        }
+        add_screen_text(next_text, 0.665F, 0.905F, 0.0050F, muted);
+
+        if (state.status == RunStatus::crashed) {
+            add_centered_screen_text("RUN TERMINATED", 0.5F, 0.69F,
+                0.0085F, danger);
+            add_centered_screen_text("TAP TO RESTART", 0.5F, 0.60F,
+                0.0065F, amber);
+            return;
+        }
+
+        if (state.on_chasm_plate) {
+            char blink_text[24]{};
+            const float remaining = std::max(
+                0.0F, game_.config().chasm_plate_duration - state.chasm_plate_elapsed);
+            std::snprintf(blink_text, sizeof(blink_text), "BLINK %.2FS",
+                static_cast<double>(remaining));
+            const float urgency = 1.0F - std::clamp(
+                remaining / game_.config().chasm_plate_duration, 0.0F, 1.0F);
+            add_centered_screen_text("BIT CHASM", 0.5F, 0.80F, 0.0070F, amber);
+            add_centered_screen_text(blink_text, 0.5F, 0.73F, 0.0100F,
+                mix_color(amber, danger, urgency));
+        } else if (game_.action_available()) {
+            add_centered_screen_text("ANCHOR", 0.5F, 0.80F, 0.0100F, amber);
+        }
     }
 
     void add_screen_square(float cx, float cy, float half_size, const Color& color) {

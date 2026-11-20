@@ -41,7 +41,7 @@ Android build notes are in [android/README.md](android/README.md).
 
 ## Current limitations
 
-The runner currently reuses the corridor as its continuous visual environment and adds runner-owned vector geometry for FOLD_GATE and BIT_CHASM, plus the BIT_DISINTEGRATION failure effect. The score/next-hazard HUD and direct device performance tuning remain open. Desktop diagnostics appear in the window title; Android uses a compact vector touch overlay.
+The runner currently reuses the corridor as its continuous visual environment and adds runner-owned vector geometry for FOLD_GATE and BIT_CHASM, plus the BIT_DISINTEGRATION failure effect. A runner-owned 5×7 vector HUD displays distance, score, lane, next hazard, and ANCHOR/BLINK prompts. Direct device performance tuning remains open. Desktop diagnostics also appear in the window title; Android uses a compact vector touch overlay.
 
 No wallet, Nano RPC, proof-of-work, backend, internet permission, or payout code is present. The game is designed to remain offline and playable without XNO integration.
 

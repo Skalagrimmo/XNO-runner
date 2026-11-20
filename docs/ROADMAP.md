@@ -29,7 +29,7 @@
 - [x] Replace the sprint control with a contextual action button.
 - [x] Add the BIT_DISINTEGRATION crash effect.
 - [x] Render obstacle geometry and distance-driven animation in an isolated runner vector pass.
-- [ ] Add an on-screen score, lane, and next-hazard indicator.
+- [x] Add an on-screen score, lane, and next-hazard indicator with contextual BIT_CHASM prompts and plate countdown.
 - [ ] Add replay/event-trace format and deterministic regression fixtures.
 - [ ] Tune touch controls by direct playtesting.
 - [ ] Verify lifecycle pause/resume and interrupted runs.
