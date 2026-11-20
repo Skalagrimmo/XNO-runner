@@ -1,12 +1,12 @@
 # M1 — Vector Hazard Render Pass
 
-**Branch:** \`m1-runner-prototype\`  
+**Branch:** `m1-runner-prototype`  
 **Status:** implementation pass; device validation pending  
 **Date:** 2026-11-20
 
 ## Renderer boundary
 
-The pinned \`upstream/permission-denied-native\` submodule remains unchanged. Its OpenGL renderer continues to own the corridor background and the original vector scene. XNO Runner adds \`runner/renderer/runner_hazard_renderer.cpp\`, which creates a separate OpenGL ES 2.0 / desktop OpenGL 2.1 line-and-fill pass using SDL's GL procedure lookup.
+The pinned `upstream/permission-denied-native` submodule remains unchanged. Its OpenGL renderer continues to own the corridor background and the original vector scene. XNO Runner adds `runner/renderer/runner_hazard_renderer.cpp`, which creates a separate OpenGL ES 2.0 / desktop OpenGL 2.1 line-and-fill pass using SDL's GL procedure lookup.
 
 The runner pass mirrors the upstream camera transform and perspective constants so its world-space hazard vertices align with the floor and corridor. It owns its shaders, VBOs, and temporary geometry buffers. Touch controls are drawn after the hazards so they remain readable when a mechanism approaches the camera.
 
@@ -36,7 +36,7 @@ The runner pass mirrors the upstream camera transform and perspective constants 
 
 The two hazard families alternate by obstacle ID, not by an additional RNG call. Existing SplitMix64 lane and spacing generation therefore retains its random stream.
 
-The visual wake begins about 14 world units before the obstacle plane and the mechanism finishes deploying around 4 units before it. The collision plane and lane rules are still determined exclusively by \`RunnerGame\`.
+The visual wake begins about 14 world units before the obstacle plane and the mechanism finishes deploying around 4 units before it. The collision plane and lane rules are still determined exclusively by `RunnerGame`.
 
 ## Verification state
 
