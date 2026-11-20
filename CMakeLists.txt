@@ -39,6 +39,7 @@ if(ANDROID)
     set_property(TARGET main PROPERTY SOURCES
         "${CMAKE_CURRENT_SOURCE_DIR}/runner/platform/runner_main.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/runner/platform/sdl_runner_application.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/runner/renderer/runner_hazard_renderer.cpp"
     )
     target_include_directories(main PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(main PRIVATE xno_runner_core)
@@ -48,6 +49,7 @@ else()
     add_executable(xno_runner_desktop
         runner/platform/runner_main.cpp
         runner/platform/sdl_runner_application.cpp
+        runner/renderer/runner_hazard_renderer.cpp
     )
     target_include_directories(xno_runner_desktop PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(xno_runner_desktop PRIVATE xno_runner_core pd_core pd_renderer)
