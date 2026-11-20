@@ -58,7 +58,7 @@ public:
 
     void reset(std::uint64_t seed);
     void start() noexcept;
-    void step(const RunnerInput& input, float delta_seconds) noexcept;
+    void step(const RunnerInput& input, float delta_seconds);
 
     [[nodiscard]] const RunnerState& state() const noexcept { return state_; }
     [[nodiscard]] const std::vector<RunnerObstacle>& obstacles() const noexcept {
@@ -69,7 +69,7 @@ public:
 
 private:
     [[nodiscard]] std::uint64_t next_random() noexcept;
-    void spawn_ahead() noexcept;
+    void spawn_ahead();
     void update_lane(float delta_seconds) noexcept;
     void update_obstacles(float previous_distance) noexcept;
 
