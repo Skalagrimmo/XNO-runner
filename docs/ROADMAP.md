@@ -7,34 +7,37 @@
 - [x] Record verified renderer, Android, and toolchain facts.
 - [x] Define game, reward, and platform boundaries.
 - [x] Create the remote GitHub repository and publish the initial documentation.
-- [ ] Decide whether the upstream engine is submoduled, vendored, or selectively extracted for the first playable build.
+- [x] Add independent native runner simulation and deterministic smoke tests.
+- [x] Add a runner-specific SDL application and build orchestration.
+- [x] Add an Android application identity and Gradle/CMake target.
+- [ ] Build and run desktop target from a clean clone.
+- [ ] Build, install, and launch the first XNO Runner APK on the SM-J710F.
 
 ## M1 — Corridor runner prototype (no blockchain)
 
-- [ ] Establish a reproducible native and Android build in this repository.
-- [ ] Create a minimal runner state machine: menu, running, paused, failed, result.
-- [ ] Add forward progression through deterministic corridor segments.
-- [ ] Choose and implement the first movement model.
-- [ ] Add one obstacle family and collision tests.
-- [ ] Derive distance and score from simulation state.
-- [ ] Record a deterministic run seed and ruleset version.
-
-## M2 — Playable Android vertical slice
-
-- [ ] Add mobile HUD and tune touch controls by direct playtesting.
+- [x] Establish a reproducible native and Android build definition in this repository.
+- [x] Create a minimal run state machine: ready, running, crashed, restart.
+- [x] Add forward progression through the existing vector corridor.
+- [x] Implement three-lane movement and smooth lane transitions.
+- [x] Add deterministic obstacle placement from a fixed seed.
+- [x] Add obstacle collision and run result state.
+- [x] Derive distance and score from simulation state, not rendered frame count.
+- [ ] Render obstacle meshes in the vector corridor.
+- [ ] Add an on-screen score, lane, and next-hazard indicator.
+- [ ] Add replay/event-trace format and deterministic regression fixtures.
+- [ ] Tune touch controls by direct playtesting.
 - [ ] Verify lifecycle pause/resume and interrupted runs.
-- [ ] Add restart flow and local best score.
 - [ ] Profile CPU, GPU, and frame time on the SM-J710F baseline and one newer Android device.
 - [ ] Add quality settings if measured bottlenecks require them.
 
-## M3 — Content and replay validation
+## M2 — Content and validation
 
-- [ ] Add more obstacle families and corridor segment patterns.
-- [ ] Add replay/event-trace format and deterministic regression fixtures.
-- [ ] Test repeated seeds, edge collisions, and long runs.
+- [ ] Add multiple obstacle families and corridor segment patterns.
+- [ ] Add deterministic replay export and verification tests.
+- [ ] Test long runs, edge collisions, and seed reproducibility.
 - [ ] Add score/ruleset versioning and migration policy.
 
-## M4 — Reward-service prototype (test environment only)
+## M3 — Reward-service prototype (test environment only)
 
 - [ ] Specify the run-submission API and server-side verification rules.
 - [ ] Implement a reward ledger and duplicate-submission protection.
@@ -42,7 +45,7 @@
 - [ ] Keep all signing keys outside the APK.
 - [ ] Test confirmation tracking, retries, idempotency, and failed-payout recovery.
 
-## M5 — Optional production XNO rewards
+## M4 — Optional production XNO rewards
 
 - [ ] Document reward-pool funding and payout policy.
 - [ ] Complete threat review and abuse testing.
@@ -51,4 +54,4 @@
 
 ## Release gate
 
-A playable, deterministic offline game must exist before any live reward integration is considered. Mainnet integration is not part of the initial scaffold.
+A playable, deterministic offline game with visible hazards and a clear result UI must exist before any live reward integration is considered. Mainnet integration is not part of the initial prototype.
