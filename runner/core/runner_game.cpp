@@ -10,6 +10,7 @@ constexpr float kScorePerMeter = 10.0F;
 constexpr std::uint64_t kObstacleClearBonus = 250;
 constexpr float kObstacleRetireDistance = 1.0F;
 constexpr float kSpawnLookAhead = 64.0F;
+constexpr float kCrashEffectDuration = 1.2F;
 
 float approach(float current, float target, float amount) noexcept {
     if (current < target) return std::min(current + amount, target);
@@ -66,10 +67,16 @@ void RunnerGame::spawn_ahead() {
             static_cast<float>(0x1000000ULL);
         const float spacing = config_.obstacle_min_spacing + unit * spacing_range;
         const int lane = static_cast<int>(next_random() % 3ULL);
+        const std::uint64_t obstacle_id = next_obstacle_id_++;
+        // Alternate the two first-pass silhouettes without consuming RNG state.
+        const HazardType type = (obstacle_id % 2ULL == 0ULL)
+            ? HazardType::bit_chasm
+            : HazardType::fold_gate;
         obstacles_.push_back({
-            next_obstacle_id_++,
+            obstacle_id,
             next_spawn_distance_,
             lane,
+            type,
             false
         });
         next_spawn_distance_ += spacing;
@@ -100,6 +107,7 @@ void RunnerGame::update_obstacles(float previous_distance) noexcept {
         if (lateral_error <= config_.collision_half_lane) {
             state_.status = RunStatus::crashed;
             state_.collision_obstacle_id = obstacle.id;
+            state_.crash_effect_elapsed = 0.0F;
             state_.sprinting = false;
             return;
         }
@@ -128,10 +136,17 @@ void RunnerGame::step(const RunnerInput& input, float delta_seconds) {
     if (input.start && state_.status == RunStatus::ready) {
         start();
     }
-    if (state_.status != RunStatus::running) return;
 
     const float dt = std::clamp(delta_seconds, 0.0F, kMaxStepSeconds);
     if (dt <= 0.0F) return;
+
+    // The presentation timer continues after a crash; world simulation stays frozen.
+    if (state_.status == RunStatus::crashed) {
+        state_.crash_effect_elapsed = std::min(
+            state_.crash_effect_elapsed + dt, kCrashEffectDuration);
+        return;
+    }
+    if (state_.status != RunStatus::running) return;
 
     if (input.lane_delta < 0) {
         state_.target_lane = std::max(0, state_.target_lane - 1);
