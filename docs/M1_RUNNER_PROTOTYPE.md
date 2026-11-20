@@ -14,14 +14,18 @@
 - Hold-to-sprint multiplier.
 - Distance-derived score and obstacle-clear bonus.
 - Collision detection against a blocked lane.
+- Deterministic alternation of FOLD_GATE and BIT_CHASM hazard families without consuming extra obstacle RNG state.
 - Restart with the original seed.
-- SDL application using the pinned Permission Denied Native OpenGL renderer and its existing Android touch HUD.
+- A runner-local OpenGL vector pass for articulated FOLD_GATE arms, dark BIT_CHASM insets, falling floor plates, and warning edges.
+- A BIT_DISINTEGRATION crash effect whose fragments are derived from run seed and collision obstacle ID.
+- A crash presentation timer that advances while world distance, score, and simulation ticks remain frozen.
+- SDL application using the pinned Permission Denied Native corridor renderer; the runner draws its own touch overlay after hazards.
 - Fixed 60 Hz simulation loop, separate from rendering.
 - Desktop keyboard controls and Android virtual-stick/sprint controls.
 
 ## Deliberate limits
 
-The existing corridor is reused as a continuous visual environment. This first pass does not yet draw obstacle meshes or a dedicated score/hazard HUD. Desktop window title reports run metrics and the next blocked lane; Android log output is diagnostic only. Therefore this is an engineering prototype, not yet a fair player-facing release candidate.
+The existing corridor remains the continuous environment. Hazard geometry is implemented in a separate runner-owned OpenGL pass using the corridor's camera projection; no source inside the pinned upstream submodule is changed. Desktop window title reports run metrics and the next hazard. A dedicated in-game score/lane HUD is still pending, and the new render pass has not yet been validated on the SM-J710F or another Android device. This remains an engineering prototype, not a release candidate.
 
 No wallet, Nano RPC, work-generation, network permission, backend, or reward transaction code is included.
 
@@ -50,4 +54,4 @@ Android (Windows):
 
 ## Test coverage
 
-The smoke test covers deterministic obstacle generation, inert ready state, fixed-step progression, safe obstacle pass, collision, and restart. It is a native simulation test and does not substitute for a device playtest.
+The smoke test covers deterministic obstacle placement and hazard-family order, inert ready state, fixed-step progression, safe obstacle pass, collision, frozen world state during the crash effect, and restart. The current core workflow compiles the simulation and tests; the desktop-build workflow compiles the full renderer/application. Neither substitutes for a device playtest.
