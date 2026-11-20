@@ -22,7 +22,11 @@
 - [x] Add deterministic obstacle placement from a fixed seed.
 - [x] Add obstacle collision and run result state.
 - [x] Derive distance and score from simulation state, not rendered frame count.
-- [ ] Render obstacle meshes in the vector corridor.
+- [x] Define an original vector-hazard art direction: unfolding mechanisms, bit chasms, iris gates, and a digital disintegration fail effect.
+- [ ] Render the FOLD_GATE obstacle as the first animated vector hazard.
+- [ ] Render BIT_CHASM floor plates and falling fragments.
+- [ ] Add the BIT_DISINTEGRATION crash effect.
+- [ ] Render obstacle meshes and animation states in the vector corridor.
 - [ ] Add an on-screen score, lane, and next-hazard indicator.
 - [ ] Add replay/event-trace format and deterministic regression fixtures.
 - [ ] Tune touch controls by direct playtesting.
