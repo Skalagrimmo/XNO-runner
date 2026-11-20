@@ -11,10 +11,16 @@ enum class RunStatus : std::uint8_t {
     crashed
 };
 
+enum class HazardType : std::uint8_t {
+    fold_gate,
+    bit_chasm
+};
+
 struct RunnerObstacle {
     std::uint64_t id = 0;
     float distance = 0.0F;
     int blocked_lane = 1; // 0 = left, 1 = centre, 2 = right
+    HazardType type = HazardType::fold_gate;
     bool resolved = false;
 };
 
@@ -45,6 +51,7 @@ struct RunnerState {
     float distance = 0.0F;
     float elapsed_seconds = 0.0F;
     float speed = 0.0F;
+    float crash_effect_elapsed = 0.0F;
     std::uint64_t score = 0;
     std::uint64_t simulation_ticks = 0;
     std::uint64_t obstacles_cleared = 0;
