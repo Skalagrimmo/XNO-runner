@@ -245,6 +245,7 @@ int main() {
         });
     assert(action_event != tampered_replay.events.end());
     action_event->input.action = false;
+    action_event->input.lane_delta = 1; // Keep the event valid while changing the simulation input.
     const auto tampered_verification = xno::runner::verify_runner_replay(tampered_replay);
     assert(!tampered_verification.success);
     assert(tampered_verification.mismatch_frame_count > 0);
