@@ -30,7 +30,8 @@
 - [x] Add the BIT_DISINTEGRATION crash effect.
 - [x] Render obstacle geometry and distance-driven animation in an isolated runner vector pass.
 - [x] Add an on-screen score, lane, and next-hazard indicator with contextual BIT_CHASM prompts and plate countdown.
-- [ ] Add replay/event-trace format and deterministic regression fixtures.
+- [x] Add a versioned replay/event-trace format and deterministic regression fixtures.
+- [x] Add desktop replay verification utility and automatic last-session trace export.
 - [ ] Tune touch controls by direct playtesting.
 - [ ] Verify lifecycle pause/resume and interrupted runs.
 - [ ] Profile CPU, GPU, and frame time on the SM-J710F baseline and one newer Android device.

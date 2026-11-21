@@ -3,6 +3,7 @@
 #include "pd/core/game.hpp"
 #include "pd/renderer/opengl_renderer.hpp"
 #include "runner/core/runner_game.hpp"
+#include "runner/core/runner_replay.hpp"
 #include "runner/renderer/runner_hazard_renderer.hpp"
 
 #include <SDL3/SDL.h>
@@ -11,6 +12,8 @@
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <filesystem>
+#include <fstream>
 #include <string>
 
 namespace xno::runner::platform {
@@ -197,6 +200,8 @@ int SdlRunnerApplication::run() {
 
     constexpr std::uint64_t kRunSeed = 0x584E4F52554E4E52ULL; // "XNORUNNR"
     RunnerGame game(kRunSeed);
+    RunnerReplayRecorder replay_recorder(
+        kRunSeed, game.config(), static_cast<float>(kFixedStep));
     KeyboardState keyboard{};
     TouchState touch{};
     bool running = true;
@@ -291,7 +296,7 @@ int SdlRunnerApplication::run() {
             input.start = start_pending;
             input.restart = restart_pending;
             input.action = keyboard.action_pending || touch.action_pending;
-            game.step(input, static_cast<float>(kFixedStep));
+            replay_recorder.step(game, input);
             pending_lane_delta = 0;
             start_pending = false;
             restart_pending = false;
@@ -370,6 +375,31 @@ int SdlRunnerApplication::run() {
             }
             SDL_SetWindowTitle(window, title);
             title_time = now;
+        }
+    }
+
+    replay_recorder.finish(game);
+    if (replay_recorder.replay().frame_count > 0U) {
+        char* preference_path = SDL_GetPrefPath("Skalagrimmo", "XNO-Runner");
+        if (preference_path != nullptr) {
+            const std::filesystem::path replay_path =
+                std::filesystem::u8path(std::string(preference_path)) / "last-run.xnr";
+            std::ofstream replay_file(replay_path, std::ios::out | std::ios::trunc);
+            std::string replay_error;
+            if (replay_file &&
+                write_runner_replay(replay_file, replay_recorder.replay(), &replay_error)) {
+                SDL_Log("Replay trace saved: %s", replay_path.string().c_str());
+                SDL_Log("Replay trace: %llu frames, %llu input events, %llu checkpoints",
+                    static_cast<unsigned long long>(replay_recorder.replay().frame_count),
+                    static_cast<unsigned long long>(replay_recorder.replay().events.size()),
+                    static_cast<unsigned long long>(replay_recorder.replay().checkpoints.size()));
+            } else {
+                SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Could not save replay trace: %s",
+                    replay_error.empty() ? "file open failed" : replay_error.c_str());
+            }
+            SDL_free(preference_path);
+        } else {
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "SDL_GetPrefPath failed: %s", SDL_GetError());
         }
     }
 

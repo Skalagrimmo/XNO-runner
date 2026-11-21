@@ -51,6 +51,7 @@ No wallet, Nano RPC, proof-of-work, backend, internet permission, or payout code
 - [Architecture](docs/ARCHITECTURE.md)
 - [Verified upstream baseline](docs/TECHNICAL_BASELINE.md)
 - [M1 prototype scope](docs/M1_RUNNER_PROTOTYPE.md)
+- [Deterministic replay trace format](docs/REPLAY_TRACE_FORMAT.md)
 - [Vector hazard art direction](docs/VECTOR_HAZARD_ART_DIRECTION.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Future XNO rewards design](docs/XNO_REWARDS.md)

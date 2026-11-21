@@ -44,3 +44,5 @@ Debug application ID: com.skalagrimmo.xnorunner.dev
 BIT_CHASM is a full-width traversal hazard. The first action press anchors a temporary plate in the player's current lane and blinks onto it. A second press blinks to solid ground beyond the gap. The plate collapses after a short fixed-time window; missing the second press causes a fall. FOLD_GATE remains a lane-avoidance hazard. Both hazard families are rendered in the runner-owned vector pass.
 
 The runner-owned 5×7 vector HUD is rendered on desktop and Android without platform fonts or image assets. It shows distance, score, lane, the next hazard and its distance, plus ANCHOR/BLINK prompts and the live plate countdown.
+
+On application exit, the app writes a deterministic `last-run.xnr` trace to the SDL preference directory. It contains the starting seed, config, fixed-step input events, and one-second state-hash checkpoints. The debug package can expose this file through `run-as`; see the root README for the ADB extraction command.

@@ -23,6 +23,9 @@
 - A crash presentation timer that advances while world distance, score, and simulation ticks remain frozen.
 - SDL application using the pinned Permission Denied Native corridor renderer; the runner draws its own touch overlay after hazards.
 - Fixed 60 Hz simulation loop, separate from rendering.
+- Versioned sparse-input replay format with seed/config capture, one-second deterministic state-hash checkpoints, serialization/deserialization, and headless replay verification.
+- Automatic saving of the latest session trace to the SDL preference directory when the app exits.
+- Desktop `xno_runner_replay_verify` utility for checking exported replay traces.
 - Desktop keyboard controls and Android virtual-stick/contextual-action controls.
 
 ## Deliberate limits
@@ -56,4 +59,4 @@ Android (Windows):
 
 ## Test coverage
 
-The smoke test covers deterministic obstacle placement and hazard-family order, inert ready state, fixed-step progression, safe obstacle pass, BIT_CHASM's successful two-press traversal and timeout fall, frozen world state during the crash effect, and restart. The current core workflow compiles the simulation and tests; the desktop-build workflow compiles the full renderer/application. Neither substitutes for a device playtest.
+The smoke test covers deterministic obstacle placement and hazard-family order, inert ready state, fixed-step progression, safe obstacle pass, BIT_CHASM's successful two-press traversal and timeout fall, frozen world state during the crash effect, restart, replay file round-trip, successful playback verification, and detection of a tampered input at the first divergent checkpoint. The current core workflow compiles the simulation and tests; the desktop-build workflow compiles the full renderer/application. Neither substitutes for a device playtest.

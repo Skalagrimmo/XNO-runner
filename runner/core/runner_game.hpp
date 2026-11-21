@@ -79,6 +79,7 @@ public:
     }
     [[nodiscard]] std::uint64_t seed() const noexcept { return seed_; }
     [[nodiscard]] const RunnerConfig& config() const noexcept { return config_; }
+    [[nodiscard]] std::uint64_t deterministic_hash() const noexcept;
     [[nodiscard]] bool action_available() const noexcept;
 
 private:

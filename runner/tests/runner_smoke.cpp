@@ -1,9 +1,12 @@
 #include "runner/core/runner_game.hpp"
+#include "runner/core/runner_replay.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstdint>
 #include <iostream>
+#include <sstream>
 
 using xno::runner::HazardType;
 using xno::runner::RunStatus;
@@ -144,6 +147,113 @@ int main() {
         RunnerGame(0x12345678ULL).obstacles().front().blocked_lane);
     assert(fall.obstacles().front().type == HazardType::fold_gate);
 
-    std::cout << "XNO Runner core smoke tests passed.\n";
+
+    // Record a real scripted session: start, lane movement, both BIT_CHASM
+    // presses, a FOLD_GATE crash, crash presentation, then a restart.
+    const std::uint64_t replay_seed = 0x12345678ULL;
+    RunnerGame recorded_game(replay_seed);
+    xno::runner::RunnerReplayRecorder recorder(
+        replay_seed, recorded_game.config(), kStep, 60);
+    const auto record_step = [&recorder, &recorded_game](RunnerInput input) {
+        recorder.step(recorded_game, input);
+    };
+
+    const auto recorded_first_fold = recorded_game.obstacles().front();
+    const int replay_safe_delta = recorded_first_fold.blocked_lane == 1 ? -1 : 0;
+    record_step({.start = true});
+    if (replay_safe_delta != 0) {
+        record_step({.lane_delta = replay_safe_delta});
+    }
+
+    for (int frame = 0;
+         frame < 1200 && !recorded_game.action_available();
+         ++frame) {
+        record_step({});
+        assert(recorded_game.state().status == RunStatus::running);
+    }
+    assert(recorded_game.action_available());
+    record_step({.action = true});
+    for (int frame = 0; frame < 18; ++frame) record_step({});
+    record_step({.action = true});
+    assert(!recorded_game.state().on_chasm_plate);
+
+    xno::runner::RunnerObstacle next_fold{};
+    bool found_next_fold = false;
+    for (const auto& obstacle : recorded_game.obstacles()) {
+        if (!obstacle.resolved) {
+            next_fold = obstacle;
+            found_next_fold = true;
+            break;
+        }
+    }
+    assert(found_next_fold);
+    assert(next_fold.type == HazardType::fold_gate);
+
+    for (int frame = 0;
+         frame < 1200 &&
+         next_fold.distance - recorded_game.state().distance > 10.0F;
+         ++frame) {
+        record_step({});
+    }
+
+    while (recorded_game.state().target_lane != next_fold.blocked_lane) {
+        const int delta = next_fold.blocked_lane > recorded_game.state().target_lane
+            ? 1 : -1;
+        record_step({.lane_delta = delta});
+    }
+    for (int frame = 0;
+         frame < 1200 && recorded_game.state().status != RunStatus::crashed;
+         ++frame) {
+        record_step({});
+    }
+    assert(recorded_game.state().status == RunStatus::crashed);
+    for (int frame = 0; frame < 20; ++frame) record_step({});
+    record_step({.restart = true});
+    assert(recorded_game.state().status == RunStatus::running);
+    for (int frame = 0; frame < 30; ++frame) record_step({});
+    recorder.finish(recorded_game);
+
+    const auto& captured_replay = recorder.replay();
+    assert(captured_replay.frame_count > 60);
+    assert(captured_replay.events.size() >= 5);
+    assert(!captured_replay.checkpoints.empty());
+    assert(captured_replay.checkpoints.back().frame_count == captured_replay.frame_count);
+
+    std::stringstream replay_stream;
+    std::string replay_error;
+    assert(xno::runner::write_runner_replay(
+        replay_stream, captured_replay, &replay_error));
+    replay_stream.seekg(0);
+    xno::runner::RunnerReplay decoded_replay{};
+    assert(xno::runner::read_runner_replay(
+        replay_stream, decoded_replay, &replay_error));
+    assert(decoded_replay.frame_count == captured_replay.frame_count);
+    assert(decoded_replay.events.size() == captured_replay.events.size());
+    assert(decoded_replay.checkpoints.size() == captured_replay.checkpoints.size());
+
+    const auto replay_verification = xno::runner::verify_runner_replay(decoded_replay);
+    assert(replay_verification.success);
+    assert(replay_verification.frames_processed == captured_replay.frame_count);
+
+    // Altering an input must be detected at the first affected state checkpoint.
+    auto tampered_replay = decoded_replay;
+    const auto action_event = std::find_if(
+        tampered_replay.events.begin(),
+        tampered_replay.events.end(),
+        [](const xno::runner::RunnerReplayEvent& event) {
+            return event.input.action;
+        });
+    assert(action_event != tampered_replay.events.end());
+    action_event->input.action = false;
+    const auto tampered_verification = xno::runner::verify_runner_replay(tampered_replay);
+    assert(!tampered_verification.success);
+    assert(tampered_verification.mismatch_frame_count > 0);
+
+    std::stringstream malformed_replay("XNO_RUNNER_REPLAY 99\n");
+    xno::runner::RunnerReplay rejected_replay{};
+    assert(!xno::runner::read_runner_replay(
+        malformed_replay, rejected_replay, &replay_error));
+
+    std::cout << "XNO Runner core and replay smoke tests passed.\n";
     return 0;
 }

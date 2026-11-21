@@ -1,6 +1,7 @@
 #include "runner/core/runner_game.hpp"
 
 #include <algorithm>
+#include <bit>
 #include <cmath>
 
 namespace xno::runner {
@@ -139,6 +140,75 @@ void RunnerGame::update_obstacles(float previous_distance) noexcept {
                     obstacle.distance + kObstacleRetireDistance < state_.distance;
             }),
         obstacles_.end());
+}
+
+std::uint64_t RunnerGame::deterministic_hash() const noexcept {
+    static_assert(sizeof(float) == sizeof(std::uint32_t));
+    constexpr std::uint64_t kFnvOffset = 14695981039346656037ULL;
+    constexpr std::uint64_t kFnvPrime = 1099511628211ULL;
+    std::uint64_t hash = kFnvOffset;
+
+    const auto append_u64 = [&hash](std::uint64_t value) {
+        constexpr std::uint64_t prime = kFnvPrime;
+        for (unsigned int byte = 0; byte < 8U; ++byte) {
+            hash ^= (value >> (byte * 8U)) & 0xFFULL;
+            hash *= prime;
+        }
+    };
+    const auto append_float = [&append_u64](float value) {
+        append_u64(std::bit_cast<std::uint32_t>(value));
+    };
+    const auto append_bool = [&append_u64](bool value) {
+        append_u64(value ? 1ULL : 0ULL);
+    };
+
+    // Include all configuration and generator internals, not only visible HUD
+    // state. A matching hash therefore checks the future obstacle stream too.
+    append_float(config_.base_speed);
+    append_float(config_.max_speed);
+    append_float(config_.speed_ramp_per_second);
+    append_float(config_.lane_change_speed);
+    append_float(config_.obstacle_first_distance);
+    append_float(config_.obstacle_min_spacing);
+    append_float(config_.obstacle_max_spacing);
+    append_float(config_.collision_half_depth);
+    append_float(config_.collision_half_lane);
+    append_float(config_.chasm_action_distance);
+    append_float(config_.chasm_plate_duration);
+    append_float(config_.chasm_plate_stop_offset);
+    append_float(config_.chasm_exit_offset);
+
+    append_u64(seed_);
+    append_u64(random_state_);
+    append_u64(next_obstacle_id_);
+    append_float(next_spawn_distance_);
+
+    append_u64(static_cast<std::uint64_t>(state_.status));
+    append_u64(static_cast<std::uint64_t>(static_cast<std::int64_t>(state_.target_lane)));
+    append_float(state_.lane_position);
+    append_float(state_.distance);
+    append_float(state_.elapsed_seconds);
+    append_float(state_.speed);
+    append_float(state_.crash_effect_elapsed);
+    append_float(state_.chasm_plate_elapsed);
+    append_u64(state_.score);
+    append_u64(state_.simulation_ticks);
+    append_u64(state_.obstacles_cleared);
+    append_u64(state_.collision_obstacle_id);
+    append_u64(state_.active_chasm_obstacle_id);
+    append_u64(static_cast<std::uint64_t>(static_cast<std::int64_t>(state_.active_chasm_lane)));
+    append_bool(state_.on_chasm_plate);
+
+    append_u64(static_cast<std::uint64_t>(obstacles_.size()));
+    for (const auto& obstacle : obstacles_) {
+        append_u64(obstacle.id);
+        append_float(obstacle.distance);
+        append_u64(static_cast<std::uint64_t>(
+            static_cast<std::int64_t>(obstacle.blocked_lane)));
+        append_u64(static_cast<std::uint64_t>(obstacle.type));
+        append_bool(obstacle.resolved);
+    }
+    return hash;
 }
 
 bool RunnerGame::action_available() const noexcept {

@@ -25,6 +25,7 @@ endif()
 
 add_library(xno_runner_core STATIC
     runner/core/runner_game.cpp
+    runner/core/runner_replay.cpp
 )
 target_include_directories(xno_runner_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_compile_features(xno_runner_core PUBLIC cxx_std_20)
@@ -57,6 +58,12 @@ else()
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
     )
     message(STATUS "XNO Runner target: desktop")
+
+    add_executable(xno_runner_replay_verify
+        runner/tools/replay_verify.cpp
+    )
+    target_include_directories(xno_runner_replay_verify PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(xno_runner_replay_verify PRIVATE xno_runner_core)
 endif()
 
 if(MSVC)
@@ -64,10 +71,16 @@ if(MSVC)
     if(TARGET xno_runner_desktop)
         target_compile_options(xno_runner_desktop PRIVATE /W4 /permissive- /Zc:__cplusplus)
     endif()
+    if(TARGET xno_runner_replay_verify)
+        target_compile_options(xno_runner_replay_verify PRIVATE /W4 /permissive- /Zc:__cplusplus)
+    endif()
 else()
     target_compile_options(xno_runner_core PRIVATE -Wall -Wextra -Wpedantic)
     if(TARGET xno_runner_desktop)
         target_compile_options(xno_runner_desktop PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+    if(TARGET xno_runner_replay_verify)
+        target_compile_options(xno_runner_replay_verify PRIVATE -Wall -Wextra -Wpedantic)
     endif()
 endif()
 

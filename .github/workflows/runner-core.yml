@@ -28,15 +28,15 @@ jobs:
         shell: bash
         run: |
           c++ -std=c++20 -Wall -Wextra -Wpedantic -Werror -I. \
-            runner/core/runner_game.cpp runner/tests/runner_smoke.cpp \
-            -o runner_smoke
+            runner/core/runner_game.cpp runner/core/runner_replay.cpp \
+            runner/tests/runner_smoke.cpp -o runner_smoke
           ./runner_smoke
 
       - name: Build and test with MSVC
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          cl /nologo /std:c++20 /EHsc /W4 /WX /I. runner\core\runner_game.cpp runner\tests\runner_smoke.cpp /Fe:runner_smoke.exe
+          cl /nologo /std:c++20 /EHsc /W4 /WX /I. runner\core\runner_game.cpp runner\core\runner_replay.cpp runner\tests\runner_smoke.cpp /Fe:runner_smoke.exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           .\runner_smoke.exe
 
