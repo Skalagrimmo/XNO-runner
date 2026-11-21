@@ -1,3 +1,7 @@
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
+
 #include "runner/core/runner_game.hpp"
 #include "runner/core/runner_replay.hpp"
 

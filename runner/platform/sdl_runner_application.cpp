@@ -382,13 +382,18 @@ int SdlRunnerApplication::run() {
     if (replay_recorder.replay().frame_count > 0U) {
         char* preference_path = SDL_GetPrefPath("Skalagrimmo", "XNO-Runner");
         if (preference_path != nullptr) {
+            const std::u8string preference_path_utf8(
+                reinterpret_cast<const char8_t*>(preference_path));
             const std::filesystem::path replay_path =
-                std::filesystem::u8path(std::string(preference_path)) / "last-run.xnr";
+                std::filesystem::path(preference_path_utf8) /
+                std::filesystem::path(u8"last-run.xnr");
             std::ofstream replay_file(replay_path, std::ios::out | std::ios::trunc);
             std::string replay_error;
             if (replay_file &&
                 write_runner_replay(replay_file, replay_recorder.replay(), &replay_error)) {
-                SDL_Log("Replay trace saved: %s", replay_path.string().c_str());
+                const std::string replay_path_log =
+                    std::string(preference_path) + "last-run.xnr";
+                SDL_Log("Replay trace saved: %s", replay_path_log.c_str());
                 SDL_Log("Replay trace: %llu frames, %llu input events, %llu checkpoints",
                     static_cast<unsigned long long>(replay_recorder.replay().frame_count),
                     static_cast<unsigned long long>(replay_recorder.replay().events.size()),
