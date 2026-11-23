@@ -18,6 +18,14 @@ float approach(float current, float target, float amount) noexcept {
     return std::max(current - amount, target);
 }
 
+float speed_for_elapsed(const RunnerConfig& config, float elapsed_seconds) noexcept {
+    const float ramp_time = std::max(
+        0.0F, elapsed_seconds - config.speed_ramp_delay_seconds);
+    return std::min(
+        config.base_speed + ramp_time * config.speed_ramp_per_second,
+        config.max_speed);
+}
+
 std::uint64_t calculate_score(const RunnerState& state) noexcept {
     const auto distance_score = static_cast<std::uint64_t>(
         std::max(0.0F, state.distance) * kScorePerMeter);
@@ -29,6 +37,8 @@ RunnerGame::RunnerGame(std::uint64_t seed, RunnerConfig config)
     : config_(config) {
     config_.base_speed = std::max(config_.base_speed, 0.1F);
     config_.max_speed = std::max(config_.max_speed, config_.base_speed);
+    config_.speed_ramp_delay_seconds = std::max(
+        config_.speed_ramp_delay_seconds, 0.0F);
     config_.speed_ramp_per_second = std::max(config_.speed_ramp_per_second, 0.0F);
     config_.lane_change_speed = std::max(config_.lane_change_speed, 0.1F);
     config_.obstacle_min_spacing = std::max(config_.obstacle_min_spacing, 4.0F);
@@ -181,6 +191,7 @@ std::uint64_t RunnerGame::deterministic_hash() const noexcept {
     // state. A matching hash therefore checks the future obstacle stream too.
     append_float(config_.base_speed);
     append_float(config_.max_speed);
+    append_float(config_.speed_ramp_delay_seconds);
     append_float(config_.speed_ramp_per_second);
     append_float(config_.lane_change_speed);
     append_float(config_.obstacle_first_distance);
@@ -282,9 +293,7 @@ void RunnerGame::step(const RunnerInput& input, float delta_seconds) {
                 state_.active_chasm_obstacle_id = 0;
                 state_.chasm_plate_elapsed = 0.0F;
                 state_.distance = active->distance + config_.chasm_exit_offset;
-                state_.speed = std::min(
-                    config_.base_speed + state_.elapsed_seconds * config_.speed_ramp_per_second,
-                    config_.max_speed);
+                state_.speed = speed_for_elapsed(config_, state_.elapsed_seconds);
                 ++state_.obstacles_cleared;
                 state_.elapsed_seconds += dt;
                 ++state_.simulation_ticks;
@@ -338,9 +347,7 @@ void RunnerGame::step(const RunnerInput& input, float delta_seconds) {
     }
 
     const float previous_distance = state_.distance;
-    state_.speed = std::min(
-        config_.base_speed + state_.elapsed_seconds * config_.speed_ramp_per_second,
-        config_.max_speed);
+    state_.speed = speed_for_elapsed(config_, state_.elapsed_seconds);
 
     update_lane(dt);
     state_.distance += state_.speed * dt;
