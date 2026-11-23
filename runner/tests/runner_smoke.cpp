@@ -44,6 +44,7 @@ void reach_first_chasm(RunnerGame& game, std::uint64_t& chasm_id) {
         });
     assert(chasm != obstacles.end());
     chasm_id = chasm->id;
+    const float chasm_distance = chasm->distance;
 
     bool left_lane_safe = true;
     bool right_lane_safe = true;
@@ -59,7 +60,6 @@ void reach_first_chasm(RunnerGame& game, std::uint64_t& chasm_id) {
     // sequence of gates; select a lane that all preceding gates leave open.
     game.step({.lane_delta = left_lane_safe ? -1 : +1}, kStep);
 
-    const float chasm_distance = chasm->distance;
     const float target_distance = chasm_distance -
         game.config().chasm_action_distance + 0.1F;
     for (int step = 0;
@@ -90,8 +90,10 @@ int main() {
     assert(first.config().speed_ramp_per_second == 0.065F);
 
     // Fixed-seed generation is varied rather than alternating every obstacle.
-    RunnerGame pattern_a(0x12345678ULL, compact_test_config());
-    RunnerGame pattern_b(0x12345678ULL, compact_test_config());
+    RunnerConfig pattern_config = compact_test_config();
+    pattern_config.obstacle_first_distance = 0.0F;
+    RunnerGame pattern_a(0x12345678ULL, pattern_config);
+    RunnerGame pattern_b(0x12345678ULL, pattern_config);
     assert(pattern_a.obstacles().size() >= 16);
     assert(pattern_a.obstacles().size() == pattern_b.obstacles().size());
     std::size_t chasm_count = 0;
