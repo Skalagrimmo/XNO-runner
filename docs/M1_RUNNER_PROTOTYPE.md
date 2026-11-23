@@ -10,7 +10,7 @@
 - Explicit ready / running / crashed states.
 - Deterministic SplitMix64 obstacle generation with a per-run seed.
 - Three lanes with smooth transitions and bounds.
-- Automatic forward movement and a gradual speed ramp (0.065 m/s per second).
+- Automatic forward movement with a 12-second base-speed plateau, followed by a gradual 0.065 m/s-per-second ramp.
 - A longer 34 m opening runway and randomized 28–40 m obstacle spacing.
 - A contextual action input replacing sprint.
 - Distance-derived score and obstacle-clear bonus.
@@ -60,4 +60,4 @@ Android (Windows):
 
 ## Test coverage
 
-The smoke test covers deterministic but non-alternating hazard distribution, minimum spacing between BIT_CHASM events, configured runway/spacing/speed-ramp values, inert ready state, fixed-step progression, safe obstacle pass, BIT_CHASM's successful two-press traversal and timeout fall, frozen world state during the crash effect, restart, replay file round-trip, successful playback verification, and detection of a tampered input at the first divergent checkpoint. The current core workflow compiles the simulation and tests; the desktop-build workflow compiles the full renderer/application. Neither substitutes for a device playtest.
+The smoke test covers deterministic but non-alternating hazard distribution, minimum spacing between BIT_CHASM events, configured runway/spacing/12-second speed plateau/speed-ramp values, inert ready state, fixed-step progression, safe obstacle pass, BIT_CHASM's successful two-press traversal and timeout fall, frozen world state during the crash effect, restart, replay file round-trip, successful playback verification, and detection of a tampered input at the first divergent checkpoint. The current core workflow compiles the simulation and tests; the desktop-build workflow compiles the full renderer/application. Neither substitutes for a device playtest.
