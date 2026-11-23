@@ -87,6 +87,7 @@ int main() {
     assert(first.config().obstacle_first_distance == 34.0F);
     assert(first.config().obstacle_min_spacing == 28.0F);
     assert(first.config().obstacle_max_spacing == 40.0F);
+    assert(first.config().speed_ramp_delay_seconds == 12.0F);
     assert(first.config().speed_ramp_per_second == 0.065F);
 
     // Fixed-seed generation is varied rather than alternating every obstacle.
@@ -117,13 +118,15 @@ int main() {
     assert(chasm_count >= 2);
     assert(chasm_count <= 6);
 
-    // Speed ramp remains gentle: after 60 seconds it has added only 3.9 m/s.
+    // Keep base speed for the first 12 seconds, then ramp gently.
     RunnerConfig ramp_config{};
     ramp_config.obstacle_first_distance = 1000.0F;
     RunnerGame ramp(0xA11CEULL, ramp_config);
     ramp.start();
-    step_many(ramp, 60 * 60);
-    assert(std::abs(ramp.state().speed - 11.9F) < 0.01F);
+    step_many(ramp, 12 * 60);
+    assert(std::abs(ramp.state().speed - 8.0F) < 0.001F);
+    step_many(ramp, 48 * 60);
+    assert(std::abs(ramp.state().speed - 11.12F) < 0.02F);
 
     // The run is inert until started, then advances on fixed simulation steps.
     assert(first.state().status == RunStatus::ready);
@@ -293,6 +296,9 @@ int main() {
     xno::runner::RunnerReplay decoded_replay{};
     assert(xno::runner::read_runner_replay(
         replay_stream, decoded_replay, &replay_error));
+    assert(decoded_replay.format_version == 2);
+    assert(decoded_replay.ruleset_version == 2);
+    assert(decoded_replay.config.speed_ramp_delay_seconds == 12.0F);
     assert(decoded_replay.frame_count == captured_replay.frame_count);
     assert(decoded_replay.events.size() == captured_replay.events.size());
     assert(decoded_replay.checkpoints.size() == captured_replay.checkpoints.size());
