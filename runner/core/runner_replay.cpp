@@ -19,10 +19,11 @@ void set_error(std::string* error, const char* message) {
     if (error != nullptr) *error = message;
 }
 
-std::array<float, 13> config_values(const RunnerConfig& config) noexcept {
+std::array<float, 14> config_values(const RunnerConfig& config) noexcept {
     return {
         config.base_speed,
         config.max_speed,
+        config.speed_ramp_delay_seconds,
         config.speed_ramp_per_second,
         config.lane_change_speed,
         config.obstacle_first_distance,
@@ -43,6 +44,7 @@ bool valid_config(const RunnerConfig& config) noexcept {
     }
     return config.base_speed > 0.0F &&
         config.max_speed >= config.base_speed &&
+        config.speed_ramp_delay_seconds >= 0.0F &&
         config.speed_ramp_per_second >= 0.0F &&
         config.lane_change_speed > 0.0F &&
         config.obstacle_min_spacing >= 4.0F &&
@@ -234,17 +236,18 @@ bool read_runner_replay(
     }
     parsed.config.base_speed = values[0];
     parsed.config.max_speed = values[1];
-    parsed.config.speed_ramp_per_second = values[2];
-    parsed.config.lane_change_speed = values[3];
-    parsed.config.obstacle_first_distance = values[4];
-    parsed.config.obstacle_min_spacing = values[5];
-    parsed.config.obstacle_max_spacing = values[6];
-    parsed.config.collision_half_depth = values[7];
-    parsed.config.collision_half_lane = values[8];
-    parsed.config.chasm_action_distance = values[9];
-    parsed.config.chasm_plate_duration = values[10];
-    parsed.config.chasm_plate_stop_offset = values[11];
-    parsed.config.chasm_exit_offset = values[12];
+    parsed.config.speed_ramp_delay_seconds = values[2];
+    parsed.config.speed_ramp_per_second = values[3];
+    parsed.config.lane_change_speed = values[4];
+    parsed.config.obstacle_first_distance = values[5];
+    parsed.config.obstacle_min_spacing = values[6];
+    parsed.config.obstacle_max_spacing = values[7];
+    parsed.config.collision_half_depth = values[8];
+    parsed.config.collision_half_lane = values[9];
+    parsed.config.chasm_action_distance = values[10];
+    parsed.config.chasm_plate_duration = values[11];
+    parsed.config.chasm_plate_stop_offset = values[12];
+    parsed.config.chasm_exit_offset = values[13];
 
     std::uint64_t event_count = 0;
     if (!read_tag(input, "frames", error) ||
