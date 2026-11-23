@@ -1,7 +1,7 @@
 # XNO Runner Replay Trace Format
 
 **File extension:** \`.xnr\`  
-**Format version:** 1  
+**Format version:** 2  
 **Simulation ruleset:** 2  
 **Purpose:** deterministic simulation reproduction and regression diagnosis
 
@@ -21,11 +21,11 @@ A frame with no recorded input event is replayed with an empty \`RunnerInput\`. 
 
 The format is plain UTF-8 text, one record per line:
 
-    XNO_RUNNER_REPLAY 1
+    XNO_RUNNER_REPLAY 2
     ruleset 2
     seed 636...
     fixed_delta 0.0166666675
-    config <13 float values>
+    config <14 float values>
     frames <total frame count>
     events <event count>
     event <zero-based frame> <lane_delta> <start> <restart> <action>
@@ -33,9 +33,9 @@ The format is plain UTF-8 text, one record per line:
     checkpoint <completed frame count> <64-bit state hash>
     END
 
-The 13 configuration values follow the \`RunnerConfig\` member order in \`runner_game.hpp\`. Boolean event fields are \`0\` or \`1\`. Event frame indexes are zero-based; a checkpoint at frame count 60 describes the state after the first 60 calls to \`RunnerGame::step\`.
+The 14 configuration values (including the 12-second speed-ramp delay) follow the \`RunnerConfig\` member order in \`runner_game.hpp\`. Boolean event fields are \`0\` or \`1\`. Event frame indexes are zero-based; a checkpoint at frame count 60 describes the state after the first 60 calls to \`RunnerGame::step\`.
 
-Ruleset 2 uses a 34 m opening runway, randomized 28–40 m obstacle spacing, a 0.065 m/s-per-second speed ramp, and a seeded 28% BIT_CHASM chance. At least two FOLD_GATE obstacles separate consecutive chasms.
+Ruleset 2 uses a 34 m opening runway, randomized 28–40 m obstacle spacing, a 12-second base-speed plateau followed by a 0.065 m/s-per-second speed ramp, and a seeded 28% BIT_CHASM chance. At least two FOLD_GATE obstacles separate consecutive chasms.
 
 The writer uses enough decimal precision to round-trip each 32-bit float. The reader rejects unknown format/ruleset versions, malformed fields, out-of-range events, and unordered checkpoints.
 
