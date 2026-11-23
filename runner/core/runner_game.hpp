@@ -34,6 +34,7 @@ struct RunnerInput {
 struct RunnerConfig {
     float base_speed = 8.0F;
     float max_speed = 15.0F;
+    float speed_ramp_delay_seconds = 12.0F;
     float speed_ramp_per_second = 0.065F;
     float lane_change_speed = 5.0F; // lane widths per second
     float obstacle_first_distance = 34.0F;
