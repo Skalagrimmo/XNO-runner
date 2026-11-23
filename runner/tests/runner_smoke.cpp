@@ -28,8 +28,8 @@ void step_many(RunnerGame& game, int count, RunnerInput input = {}) {
 RunnerConfig compact_test_config() {
     RunnerConfig config{};
     config.obstacle_first_distance = 24.0F;
-    config.obstacle_min_spacing = 4.0F;
-    config.obstacle_max_spacing = 4.0F;
+    config.obstacle_min_spacing = 8.0F;
+    config.obstacle_max_spacing = 8.0F;
     return config;
 }
 
@@ -92,6 +92,8 @@ int main() {
     // Fixed-seed generation is varied rather than alternating every obstacle.
     RunnerConfig pattern_config = compact_test_config();
     pattern_config.obstacle_first_distance = 0.0F;
+    pattern_config.obstacle_min_spacing = 4.0F;
+    pattern_config.obstacle_max_spacing = 4.0F;
     RunnerGame pattern_a(0x12345678ULL, pattern_config);
     RunnerGame pattern_b(0x12345678ULL, pattern_config);
     assert(pattern_a.obstacles().size() >= 16);
@@ -298,6 +300,13 @@ int main() {
     const auto replay_verification = xno::runner::verify_runner_replay(decoded_replay);
     assert(replay_verification.success);
     assert(replay_verification.frames_processed == captured_replay.frame_count);
+
+    // A replay recorded under the previous mechanics must not be misread as ruleset 2.
+    auto outdated_ruleset = decoded_replay;
+    outdated_ruleset.ruleset_version = 1;
+    const auto outdated_verification =
+        xno::runner::verify_runner_replay(outdated_ruleset);
+    assert(!outdated_verification.success);
 
     // Altering an input must be detected at the first affected state checkpoint.
     auto tampered_replay = decoded_replay;
