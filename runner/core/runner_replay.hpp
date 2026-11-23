@@ -10,7 +10,7 @@
 namespace xno::runner {
 
 inline constexpr std::uint32_t kRunnerReplayFormatVersion = 1;
-inline constexpr std::uint32_t kRunnerReplayRulesetVersion = 1;
+inline constexpr std::uint32_t kRunnerReplayRulesetVersion = 2;
 
 struct RunnerReplayEvent {
     std::uint64_t frame_index = 0;
