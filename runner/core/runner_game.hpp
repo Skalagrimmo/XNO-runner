@@ -34,11 +34,11 @@ struct RunnerInput {
 struct RunnerConfig {
     float base_speed = 8.0F;
     float max_speed = 15.0F;
-    float speed_ramp_per_second = 0.12F;
+    float speed_ramp_per_second = 0.065F;
     float lane_change_speed = 5.0F; // lane widths per second
-    float obstacle_first_distance = 24.0F;
-    float obstacle_min_spacing = 18.0F;
-    float obstacle_max_spacing = 24.0F;
+    float obstacle_first_distance = 34.0F;
+    float obstacle_min_spacing = 28.0F;
+    float obstacle_max_spacing = 40.0F;
     float collision_half_depth = 0.55F;
     float collision_half_lane = 0.36F;
     float chasm_action_distance = 7.0F;
@@ -93,6 +93,7 @@ private:
     std::uint64_t seed_ = 1;
     std::uint64_t random_state_ = 1;
     std::uint64_t next_obstacle_id_ = 1;
+    std::uint32_t obstacles_since_chasm_ = 2;
     float next_spawn_distance_ = 0.0F;
     std::vector<RunnerObstacle> obstacles_;
 };
