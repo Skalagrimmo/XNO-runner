@@ -48,6 +48,7 @@ void RunnerGame::reset(std::uint64_t seed) {
     seed_ = seed;
     random_state_ = seed == 0 ? 0x9E3779B97F4A7C15ULL : seed;
     next_obstacle_id_ = 1;
+    obstacles_since_chasm_ = 2;
     next_spawn_distance_ = config_.obstacle_first_distance;
     state_ = RunnerState{};
     state_.speed = config_.base_speed;
@@ -78,11 +79,25 @@ void RunnerGame::spawn_ahead() {
             static_cast<float>(0x1000000ULL);
         const float spacing = config_.obstacle_min_spacing + unit * spacing_range;
         const int lane = static_cast<int>(next_random() % 3ULL);
+        const std::uint64_t hazard_roll = next_random() % 100ULL;
         const std::uint64_t obstacle_id = next_obstacle_id_++;
-        // Alternate the two first-pass silhouettes without consuming RNG state.
-        const HazardType type = (obstacle_id % 2ULL == 0ULL)
+
+        // Keep the opening obstacle readable, then let BIT_CHASM appear
+        // probabilistically. Two FOLD_GATE obstacles must separate chasms.
+        constexpr std::uint64_t kBitChasmChancePercent = 28ULL;
+        const bool chasm_allowed = obstacle_id > 1ULL &&
+            obstacles_since_chasm_ >= 2U;
+        const bool spawn_chasm = chasm_allowed &&
+            hazard_roll < kBitChasmChancePercent;
+        const HazardType type = spawn_chasm
             ? HazardType::bit_chasm
             : HazardType::fold_gate;
+
+        if (spawn_chasm) {
+            obstacles_since_chasm_ = 0U;
+        } else if (obstacles_since_chasm_ < 3U) {
+            ++obstacles_since_chasm_;
+        }
         obstacles_.push_back({
             obstacle_id,
             next_spawn_distance_,
@@ -181,6 +196,7 @@ std::uint64_t RunnerGame::deterministic_hash() const noexcept {
     append_u64(seed_);
     append_u64(random_state_);
     append_u64(next_obstacle_id_);
+    append_u64(obstacles_since_chasm_);
     append_float(next_spawn_distance_);
 
     append_u64(static_cast<std::uint64_t>(state_.status));
