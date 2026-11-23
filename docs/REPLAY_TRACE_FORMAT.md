@@ -2,7 +2,7 @@
 
 **File extension:** \`.xnr\`  
 **Format version:** 1  
-**Simulation ruleset:** 1  
+**Simulation ruleset:** 2  
 **Purpose:** deterministic simulation reproduction and regression diagnosis
 
 ## What a replay contains
@@ -22,7 +22,7 @@ A frame with no recorded input event is replayed with an empty \`RunnerInput\`. 
 The format is plain UTF-8 text, one record per line:
 
     XNO_RUNNER_REPLAY 1
-    ruleset 1
+    ruleset 2
     seed 636...
     fixed_delta 0.0166666675
     config <13 float values>
@@ -34,6 +34,8 @@ The format is plain UTF-8 text, one record per line:
     END
 
 The 13 configuration values follow the \`RunnerConfig\` member order in \`runner_game.hpp\`. Boolean event fields are \`0\` or \`1\`. Event frame indexes are zero-based; a checkpoint at frame count 60 describes the state after the first 60 calls to \`RunnerGame::step\`.
+
+Ruleset 2 uses a 34 m opening runway, randomized 28–40 m obstacle spacing, a 0.065 m/s-per-second speed ramp, and a seeded 28% BIT_CHASM chance. At least two FOLD_GATE obstacles separate consecutive chasms.
 
 The writer uses enough decimal precision to round-trip each 32-bit float. The reader rejects unknown format/ruleset versions, malformed fields, out-of-range events, and unordered checkpoints.
 
