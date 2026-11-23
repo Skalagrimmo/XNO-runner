@@ -45,7 +45,7 @@ The writer uses enough decimal precision to round-trip each 32-bit float. The re
 
 - All simulation configuration values.
 - Run seed and random-generator state.
-- Next obstacle ID and spawn distance.
+- Next obstacle ID, spawn distance, and the BIT_CHASM spacing cooldown.
 - Every player/run state field, including the BIT_CHASM plate timer.
 - The current obstacle list and each obstacle's resolution state.
 
