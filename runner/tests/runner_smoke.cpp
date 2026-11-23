@@ -15,6 +15,7 @@
 using xno::runner::HazardType;
 using xno::runner::RunStatus;
 using xno::runner::RunnerGame;
+using xno::runner::RunnerConfig;
 using xno::runner::RunnerInput;
 
 namespace {
@@ -24,20 +25,42 @@ void step_many(RunnerGame& game, int count, RunnerInput input = {}) {
     for (int i = 0; i < count; ++i) game.step(input, kStep);
 }
 
+RunnerConfig compact_test_config() {
+    RunnerConfig config{};
+    config.obstacle_first_distance = 24.0F;
+    config.obstacle_min_spacing = 4.0F;
+    config.obstacle_max_spacing = 4.0F;
+    return config;
+}
+
 void reach_first_chasm(RunnerGame& game, std::uint64_t& chasm_id) {
-    const auto first_obstacle = game.obstacles().front();
-    assert(first_obstacle.type == HazardType::fold_gate);
-    assert(game.obstacles().size() >= 2);
-    const auto chasm = game.obstacles()[1];
-    assert(chasm.type == HazardType::bit_chasm);
-    chasm_id = chasm.id;
+    const auto& obstacles = game.obstacles();
+    assert(!obstacles.empty());
+    assert(obstacles.front().type == HazardType::fold_gate);
+    const auto chasm = std::find_if(
+        obstacles.begin(), obstacles.end(),
+        [](const auto& obstacle) {
+            return obstacle.type == HazardType::bit_chasm;
+        });
+    assert(chasm != obstacles.end());
+    chasm_id = chasm->id;
+
+    bool left_lane_safe = true;
+    bool right_lane_safe = true;
+    for (auto it = obstacles.begin(); it != chasm; ++it) {
+        if (it->type != HazardType::fold_gate) continue;
+        if (it->blocked_lane == 0) left_lane_safe = false;
+        if (it->blocked_lane == 2) right_lane_safe = false;
+    }
+    assert(left_lane_safe || right_lane_safe);
 
     game.start();
-    // Keep the player out of the FOLD_GATE lane; BIT_CHASM itself spans all lanes.
-    const int safe_delta = first_obstacle.blocked_lane == 1 ? -1 : 0;
-    if (safe_delta != 0) game.step({.lane_delta = safe_delta}, kStep);
+    // The compact fixed-spacing fixture places the first chasm after a short
+    // sequence of gates; select a lane that all preceding gates leave open.
+    game.step({.lane_delta = left_lane_safe ? -1 : +1}, kStep);
 
-    const float target_distance = chasm.distance -
+    const float chasm_distance = chasm->distance;
+    const float target_distance = chasm_distance -
         game.config().chasm_action_distance + 0.1F;
     for (int step = 0;
          step < 1200 && game.state().distance < target_distance;
@@ -59,9 +82,44 @@ int main() {
         assert(first.obstacles()[i].blocked_lane == second.obstacles()[i].blocked_lane);
         assert(first.obstacles()[i].type == second.obstacles()[i].type);
     }
-    assert(first.obstacles().size() >= 2);
+    assert(!first.obstacles().empty());
     assert(first.obstacles()[0].type == HazardType::fold_gate);
-    assert(first.obstacles()[1].type == HazardType::bit_chasm);
+    assert(first.config().obstacle_first_distance == 34.0F);
+    assert(first.config().obstacle_min_spacing == 28.0F);
+    assert(first.config().obstacle_max_spacing == 40.0F);
+    assert(first.config().speed_ramp_per_second == 0.065F);
+
+    // Fixed-seed generation is varied rather than alternating every obstacle.
+    RunnerGame pattern_a(0x12345678ULL, compact_test_config());
+    RunnerGame pattern_b(0x12345678ULL, compact_test_config());
+    assert(pattern_a.obstacles().size() >= 16);
+    assert(pattern_a.obstacles().size() == pattern_b.obstacles().size());
+    std::size_t chasm_count = 0;
+    std::size_t previous_chasm_index = 0;
+    bool has_previous_chasm = false;
+    for (std::size_t i = 0; i < pattern_a.obstacles().size(); ++i) {
+        const auto& a = pattern_a.obstacles()[i];
+        const auto& b = pattern_b.obstacles()[i];
+        assert(a.distance == b.distance);
+        assert(a.blocked_lane == b.blocked_lane);
+        assert(a.type == b.type);
+        if (a.type == HazardType::bit_chasm) {
+            ++chasm_count;
+            assert(!has_previous_chasm || i >= previous_chasm_index + 3);
+            previous_chasm_index = i;
+            has_previous_chasm = true;
+        }
+    }
+    assert(chasm_count >= 2);
+    assert(chasm_count <= 6);
+
+    // Speed ramp remains gentle: after 60 seconds it has added only 3.9 m/s.
+    RunnerConfig ramp_config{};
+    ramp_config.obstacle_first_distance = 1000.0F;
+    RunnerGame ramp(0xA11CEULL, ramp_config);
+    ramp.start();
+    step_many(ramp, 60 * 60);
+    assert(std::abs(ramp.state().speed - 11.9F) < 0.01F);
 
     // The run is inert until started, then advances on fixed simulation steps.
     assert(first.state().status == RunStatus::ready);
@@ -92,7 +150,7 @@ int main() {
     assert(early_action.state().distance > early_distance);
 
     // BIT_CHASM: first press anchors a tile and pauses the runner on it.
-    RunnerGame crossing(0x12345678ULL);
+    RunnerGame crossing(0x12345678ULL, compact_test_config());
     std::uint64_t chasm_id = 0;
     reach_first_chasm(crossing, chasm_id);
     crossing.step({.action = true}, kStep);
@@ -120,7 +178,7 @@ int main() {
     assert(crossing.state().speed >= crossing.config().base_speed);
 
     // Missing the second press causes a fall, attributed to the BIT_CHASM itself.
-    RunnerGame fall(0x12345678ULL);
+    RunnerGame fall(0x12345678ULL, compact_test_config());
     std::uint64_t fall_chasm_id = 0;
     reach_first_chasm(fall, fall_chasm_id);
     fall.step({.action = true}, kStep);
@@ -155,7 +213,7 @@ int main() {
     // Record a real scripted session: start, lane movement, both BIT_CHASM
     // presses, a FOLD_GATE crash, crash presentation, then a restart.
     const std::uint64_t replay_seed = 0x12345678ULL;
-    RunnerGame recorded_game(replay_seed);
+    RunnerGame recorded_game(replay_seed, compact_test_config());
     xno::runner::RunnerReplayRecorder recorder(
         replay_seed, recorded_game.config(), kStep, 60);
     const auto record_step = [&recorder, &recorded_game](RunnerInput input) {
