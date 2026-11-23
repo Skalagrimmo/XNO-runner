@@ -10,11 +10,12 @@
 - Explicit ready / running / crashed states.
 - Deterministic SplitMix64 obstacle generation with a per-run seed.
 - Three lanes with smooth transitions and bounds.
-- Automatic forward movement and a gradual speed ramp.
+- Automatic forward movement and a gradual speed ramp (0.065 m/s per second).
+- A longer 34 m opening runway and randomized 28–40 m obstacle spacing.
 - A contextual action input replacing sprint.
 - Distance-derived score and obstacle-clear bonus.
 - FOLD_GATE lane collision and full-width BIT_CHASM collision.
-- Deterministic alternation of FOLD_GATE and BIT_CHASM hazard families without consuming extra obstacle RNG state.
+- Seeded weighted hazard selection: the opening obstacle is a FOLD_GATE; later BIT_CHASM events are probabilistic (28%) with at least two FOLD_GATE obstacles between gaps.
 - BIT_CHASM two-stage ANCHOR/BLINK traversal: first press stabilizes a plate in the current lane and pauses forward movement; second press teleports to solid ground; missing the fixed-time window causes a fall.
 - Restart with the original seed.
 - A runner-local OpenGL vector pass for articulated FOLD_GATE arms, a full-width BIT_CHASM void, falling floor plates, an anchored temporary plate, and warning edges.
@@ -59,4 +60,4 @@ Android (Windows):
 
 ## Test coverage
 
-The smoke test covers deterministic obstacle placement and hazard-family order, inert ready state, fixed-step progression, safe obstacle pass, BIT_CHASM's successful two-press traversal and timeout fall, frozen world state during the crash effect, restart, replay file round-trip, successful playback verification, and detection of a tampered input at the first divergent checkpoint. The current core workflow compiles the simulation and tests; the desktop-build workflow compiles the full renderer/application. Neither substitutes for a device playtest.
+The smoke test covers deterministic but non-alternating hazard distribution, minimum spacing between BIT_CHASM events, configured runway/spacing/speed-ramp values, inert ready state, fixed-step progression, safe obstacle pass, BIT_CHASM's successful two-press traversal and timeout fall, frozen world state during the crash effect, restart, replay file round-trip, successful playback verification, and detection of a tampered input at the first divergent checkpoint. The current core workflow compiles the simulation and tests; the desktop-build workflow compiles the full renderer/application. Neither substitutes for a device playtest.
