@@ -93,24 +93,29 @@ void RunnerGame::spawn_ahead() {
         const std::uint64_t hazard_roll = next_random() % 100ULL;
         const std::uint64_t obstacle_id = next_obstacle_id_++;
 
-        // Keep the opening obstacle readable. Later hazards are weighted:
-        // 28% BIT_CHASM when its cooldown is satisfied, 24% RASTER_SWEEPER,
-        // and otherwise FOLD_GATE. Only actual gates advance the chasm cooldown.
+        // Teach the moving hazard immediately after the opening FOLD_GATE.
+        // Later hazards are weighted: 28% BIT_CHASM when its cooldown is
+        // satisfied, 24% RASTER_SWEEPER, and otherwise FOLD_GATE.
         constexpr std::uint64_t kBitChasmChancePercent = 28ULL;
         constexpr std::uint64_t kRasterSweeperLimitPercent = 52ULL;
-        const bool chasm_allowed = obstacle_id > 1ULL &&
+        const bool introductory_sweeper = obstacle_id == 2ULL;
+        const bool chasm_allowed = obstacle_id > 2ULL &&
             obstacles_since_chasm_ >= 2U;
-        const bool spawn_chasm = chasm_allowed &&
+        const bool spawn_chasm = !introductory_sweeper &&
+            chasm_allowed &&
             hazard_roll < kBitChasmChancePercent;
-        const bool spawn_raster = obstacle_id > 1ULL &&
-            !spawn_chasm &&
-            hazard_roll >= kBitChasmChancePercent &&
-            hazard_roll < kRasterSweeperLimitPercent;
+        const bool spawn_raster = introductory_sweeper ||
+            (obstacle_id > 2ULL &&
+                !spawn_chasm &&
+                hazard_roll >= kBitChasmChancePercent &&
+                hazard_roll < kRasterSweeperLimitPercent);
         const HazardType type = spawn_chasm
             ? HazardType::bit_chasm
             : (spawn_raster ? HazardType::raster_sweeper : HazardType::fold_gate);
 
-        if (spawn_chasm) {
+        if (introductory_sweeper || spawn_chasm) {
+            // Require two actual FOLD_GATEs after the introductory sweeper
+            // before the first BIT_CHASM can appear.
             obstacles_since_chasm_ = 0U;
         } else if (type == HazardType::fold_gate && obstacles_since_chasm_ < 3U) {
             ++obstacles_since_chasm_;
