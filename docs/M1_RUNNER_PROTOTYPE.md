@@ -15,7 +15,7 @@
 - A contextual action input replacing sprint.
 - Distance-derived score and obstacle-clear bonus.
 - FOLD_GATE lane collision, full-width BIT_CHASM collision, and time-phased RASTER_SWEEPER lane collision.
-- Seeded weighted hazard selection: the opening obstacle is a FOLD_GATE; eligible later rolls select BIT_CHASM at 28%, RASTER_SWEEPER at 24%, and FOLD_GATE otherwise. At least two actual FOLD_GATE obstacles separate consecutive chasms.
+- Seeded hazard selection: the opening obstacle is a FOLD_GATE and the second is a guaranteed introductory RASTER_SWEEPER. Later eligible rolls select BIT_CHASM at 28%, RASTER_SWEEPER at 24%, and FOLD_GATE otherwise. At least two actual FOLD_GATE obstacles separate consecutive chasms.
 - BIT_CHASM two-stage ANCHOR/BLINK traversal: first press stabilizes a plate in the current lane and pauses forward movement; second press teleports to solid ground; missing the fixed-time window causes a fall.
 - Restart with the original seed.
 - A runner-local OpenGL vector pass for articulated FOLD_GATE arms, a full-width BIT_CHASM void, and a three-lane RASTER_SWEEPER curtain with deterministic direction and lane indicators.
@@ -60,4 +60,4 @@ Android (Windows):
 
 ## Test coverage
 
-The smoke test covers deterministic weighted hazard distribution, the minimum two-FOLD_GATE cooldown between BIT_CHASM events, both RASTER_SWEEPER directions and its left-centre-right-centre phase sequence, configured runway/spacing/12-second speed plateau/speed-ramp values, inert ready state, fixed-step progression, safe obstacle pass, BIT_CHASM's successful two-press traversal and timeout fall, frozen world state during the crash effect, restart, replay file round-trip, successful playback verification, and detection of a tampered input at the first divergent checkpoint. The current core workflow compiles the simulation and tests; the desktop-build workflow compiles the full renderer/application. Neither substitutes for a device playtest.
+The smoke test covers the guaranteed early RASTER_SWEEPER for the shipped run seed, deterministic weighted hazard distribution, the minimum two-FOLD_GATE cooldown between BIT_CHASM events, both RASTER_SWEEPER directions and its left-centre-right-centre phase sequence, configured runway/spacing/12-second speed plateau/speed-ramp values, inert ready state, fixed-step progression, safe obstacle pass, BIT_CHASM's successful two-press traversal and timeout fall, frozen world state during the crash effect, restart, replay file round-trip, successful playback verification, and detection of a tampered input at the first divergent checkpoint. The current core workflow compiles the simulation and tests; the desktop-build workflow compiles the full renderer/application. Neither substitutes for a device playtest.
