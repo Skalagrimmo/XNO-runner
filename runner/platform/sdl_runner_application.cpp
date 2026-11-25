@@ -113,6 +113,7 @@ const char* hazard_name(HazardType type) noexcept {
     switch (type) {
         case HazardType::bit_chasm: return "BIT CHASM";
         case HazardType::fold_gate: return "FOLD GATE";
+        case HazardType::raster_sweeper: return "RASTER SWEEPER";
     }
     return "UNKNOWN";
 }
