@@ -35,7 +35,8 @@ RunnerConfig compact_test_config() {
 }
 
 void reach_first_chasm(RunnerGame& game, std::uint64_t& chasm_id) {
-    const auto& obstacles = game.obstacles();
+    // Copy the upcoming sequence because spawn_ahead may grow the live vector.
+    const auto obstacles = game.obstacles();
     assert(!obstacles.empty());
     assert(obstacles.front().type == HazardType::fold_gate);
     const auto chasm = std::find_if(
@@ -47,19 +48,46 @@ void reach_first_chasm(RunnerGame& game, std::uint64_t& chasm_id) {
     chasm_id = chasm->id;
     const float chasm_distance = chasm->distance;
 
-    bool left_lane_safe = true;
-    bool right_lane_safe = true;
-    for (auto it = obstacles.begin(); it != chasm; ++it) {
-        if (it->type != HazardType::fold_gate) continue;
-        if (it->blocked_lane == 0) left_lane_safe = false;
-        if (it->blocked_lane == 2) right_lane_safe = false;
-    }
-    assert(left_lane_safe || right_lane_safe);
-
     game.start();
-    // The compact fixed-spacing fixture places the first chasm after a short
-    // sequence of gates; select a lane that all preceding gates leave open.
-    game.step({.lane_delta = left_lane_safe ? -1 : +1}, kStep);
+    for (const auto& obstacle : obstacles) {
+        if (obstacle.id == chasm_id) break;
+
+        // Approach each prior obstacle to a readable 8 m decision window.
+        while (obstacle.distance - game.state().distance > 8.0F) {
+            game.step({}, kStep);
+            assert(game.state().status == RunStatus::running);
+        }
+
+        int blocked_lane = -1;
+        if (obstacle.type == HazardType::fold_gate) {
+            blocked_lane = obstacle.blocked_lane;
+        } else if (obstacle.type == HazardType::raster_sweeper) {
+            const float predicted_crossing_time = game.state().elapsed_seconds +
+                (obstacle.distance - game.state().distance) /
+                    std::max(game.state().speed, 0.1F);
+            blocked_lane = RunnerGame::raster_sweeper_lane(
+                obstacle, predicted_crossing_time);
+        }
+
+        // Keep the route safe one hazard at a time. A single fixed side is not
+        // sufficient now that the scanner can occupy either outside lane.
+        if (blocked_lane >= 0 && game.state().target_lane == blocked_lane) {
+            const int safe_lane = blocked_lane == 1 ? 0 : 1;
+            const int lane_delta = safe_lane > game.state().target_lane ? 1 : -1;
+            game.step({.lane_delta = lane_delta}, kStep);
+            assert(game.state().status == RunStatus::running);
+        }
+
+        const float clear_distance = obstacle.distance +
+            game.config().collision_half_depth + 0.25F;
+        for (int step = 0;
+             step < 240 && game.state().distance < clear_distance;
+             ++step) {
+            game.step({}, kStep);
+            assert(game.state().status == RunStatus::running);
+        }
+        assert(game.state().distance >= clear_distance);
+    }
 
     const float target_distance = chasm_distance -
         game.config().chasm_action_distance + 0.1F;
