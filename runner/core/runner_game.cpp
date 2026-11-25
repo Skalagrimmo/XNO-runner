@@ -12,6 +12,7 @@ constexpr std::uint64_t kObstacleClearBonus = 250;
 constexpr float kObstacleRetireDistance = 1.0F;
 constexpr float kSpawnLookAhead = 64.0F;
 constexpr float kCrashEffectDuration = 1.2F;
+constexpr float kRasterSweeperLaneSeconds = 0.72F;
 
 float approach(float current, float target, float amount) noexcept {
     if (current < target) return std::min(current + amount, target);
@@ -92,31 +93,59 @@ void RunnerGame::spawn_ahead() {
         const std::uint64_t hazard_roll = next_random() % 100ULL;
         const std::uint64_t obstacle_id = next_obstacle_id_++;
 
-        // Keep the opening obstacle readable, then let BIT_CHASM appear
-        // probabilistically. Two FOLD_GATE obstacles must separate chasms.
+        // Keep the opening obstacle readable. Later hazards are weighted:
+        // 28% BIT_CHASM when its cooldown is satisfied, 24% RASTER_SWEEPER,
+        // and otherwise FOLD_GATE. Only actual gates advance the chasm cooldown.
         constexpr std::uint64_t kBitChasmChancePercent = 28ULL;
+        constexpr std::uint64_t kRasterSweeperLimitPercent = 52ULL;
         const bool chasm_allowed = obstacle_id > 1ULL &&
             obstacles_since_chasm_ >= 2U;
         const bool spawn_chasm = chasm_allowed &&
             hazard_roll < kBitChasmChancePercent;
+        const bool spawn_raster = obstacle_id > 1ULL &&
+            !spawn_chasm &&
+            hazard_roll >= kBitChasmChancePercent &&
+            hazard_roll < kRasterSweeperLimitPercent;
         const HazardType type = spawn_chasm
             ? HazardType::bit_chasm
-            : HazardType::fold_gate;
+            : (spawn_raster ? HazardType::raster_sweeper : HazardType::fold_gate);
 
         if (spawn_chasm) {
             obstacles_since_chasm_ = 0U;
-        } else if (obstacles_since_chasm_ < 3U) {
+        } else if (type == HazardType::fold_gate && obstacles_since_chasm_ < 3U) {
             ++obstacles_since_chasm_;
         }
-        obstacles_.push_back({
+
+        RunnerObstacle obstacle{
             obstacle_id,
             next_spawn_distance_,
             lane,
             type,
             false
-        });
+        };
+        if (type == HazardType::raster_sweeper) {
+            obstacle.sweep_direction = (obstacle_id & 1ULL) == 0ULL ? -1 : 1;
+            obstacle.sweep_phase_offset =
+                static_cast<float>(lane) * (kRasterSweeperLaneSeconds / 3.0F);
+        }
+        obstacles_.push_back(obstacle);
         next_spawn_distance_ += spacing;
     }
+}
+
+int RunnerGame::raster_sweeper_lane(
+    const RunnerObstacle& obstacle,
+    float elapsed_seconds) noexcept {
+    constexpr int kSweepPath[4] = {0, 1, 2, 1};
+    const float safe_elapsed = std::isfinite(elapsed_seconds)
+        ? std::max(0.0F, elapsed_seconds + obstacle.sweep_phase_offset)
+        : 0.0F;
+    const float cycle_seconds = kRasterSweeperLaneSeconds * 4.0F;
+    const float cycle_position = std::fmod(safe_elapsed, cycle_seconds);
+    const int phase = std::clamp(
+        static_cast<int>(cycle_position / kRasterSweeperLaneSeconds), 0, 3);
+    const int lane = kSweepPath[phase];
+    return obstacle.sweep_direction < 0 ? 2 - lane : lane;
 }
 
 void RunnerGame::update_lane(float delta_seconds) noexcept {
@@ -133,10 +162,16 @@ void RunnerGame::update_obstacles(float previous_distance) noexcept {
 
         const float lower = obstacle.distance - config_.collision_half_depth;
         const float upper = obstacle.distance + config_.collision_half_depth;
-        const bool crossed = state_.distance >= lower && previous_distance <= upper;
+        const bool crossed = obstacle.type == HazardType::raster_sweeper
+            ? state_.distance >= obstacle.distance &&
+                previous_distance < obstacle.distance
+            : state_.distance >= lower && previous_distance <= upper;
         if (!crossed) continue;
 
-        const float blocked_lane_position = static_cast<float>(obstacle.blocked_lane - 1);
+        const int blocked_lane = obstacle.type == HazardType::raster_sweeper
+            ? raster_sweeper_lane(obstacle, state_.elapsed_seconds)
+            : obstacle.blocked_lane;
+        const float blocked_lane_position = static_cast<float>(blocked_lane - 1);
         const float lateral_error = std::abs(state_.lane_position - blocked_lane_position);
         obstacle.resolved = true;
 
@@ -234,6 +269,9 @@ std::uint64_t RunnerGame::deterministic_hash() const noexcept {
             static_cast<std::int64_t>(obstacle.blocked_lane)));
         append_u64(static_cast<std::uint64_t>(obstacle.type));
         append_bool(obstacle.resolved);
+        append_u64(static_cast<std::uint64_t>(
+            static_cast<std::int64_t>(obstacle.sweep_direction)));
+        append_float(obstacle.sweep_phase_offset);
     }
     return hash;
 }
