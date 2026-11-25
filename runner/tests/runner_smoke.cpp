@@ -333,7 +333,7 @@ int main() {
     assert(xno::runner::read_runner_replay(
         replay_stream, decoded_replay, &replay_error));
     assert(decoded_replay.format_version == 2);
-    assert(decoded_replay.ruleset_version == 3);
+    assert(decoded_replay.ruleset_version == 4);
     assert(decoded_replay.config.speed_ramp_delay_seconds == 12.0F);
     assert(decoded_replay.frame_count == captured_replay.frame_count);
     assert(decoded_replay.events.size() == captured_replay.events.size());
@@ -345,7 +345,7 @@ int main() {
 
     // Replays from ruleset 2 predate the moving sweeper and must be rejected.
     auto outdated_ruleset = decoded_replay;
-    outdated_ruleset.ruleset_version = 2;
+    outdated_ruleset.ruleset_version = 3;
     const auto outdated_verification =
         xno::runner::verify_runner_replay(outdated_ruleset);
     assert(!outdated_verification.success);
