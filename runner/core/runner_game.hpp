@@ -13,7 +13,8 @@ enum class RunStatus : std::uint8_t {
 
 enum class HazardType : std::uint8_t {
     fold_gate,
-    bit_chasm
+    bit_chasm,
+    raster_sweeper
 };
 
 struct RunnerObstacle {
@@ -22,6 +23,8 @@ struct RunnerObstacle {
     int blocked_lane = 1; // FOLD_GATE only: 0 = left, 1 = centre, 2 = right
     HazardType type = HazardType::fold_gate;
     bool resolved = false;
+    int sweep_direction = 1; // RASTER_SWEEPER: +1 left-to-right, -1 right-to-left
+    float sweep_phase_offset = 0.0F;
 };
 
 struct RunnerInput {
@@ -82,6 +85,9 @@ public:
     [[nodiscard]] const RunnerConfig& config() const noexcept { return config_; }
     [[nodiscard]] std::uint64_t deterministic_hash() const noexcept;
     [[nodiscard]] bool action_available() const noexcept;
+    [[nodiscard]] static int raster_sweeper_lane(
+        const RunnerObstacle& obstacle,
+        float elapsed_seconds) noexcept;
 
 private:
     [[nodiscard]] std::uint64_t next_random() noexcept;
