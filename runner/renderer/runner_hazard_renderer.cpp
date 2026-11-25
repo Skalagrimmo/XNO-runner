@@ -44,6 +44,7 @@ constexpr float kPi = 3.14159265358979323846F;
 constexpr float kNearPlane = 0.10F;
 constexpr float kFarPlane = 90.0F;
 constexpr float kHazardWakeDistance = 14.0F;
+constexpr float kRasterWakeDistance = 20.0F;
 constexpr float kHazardDeployDistance = 4.0F;
 
 struct Vertex {
@@ -303,15 +304,20 @@ public:
                 if (obstacle.resolved) continue;
                 const float approach = obstacle.distance - game_.state().distance;
                 if (approach < -1.5F || approach > 28.0F) continue;
+                const float wake_distance = obstacle.type == HazardType::raster_sweeper
+                    ? kRasterWakeDistance
+                    : kHazardWakeDistance;
                 const float progress = std::clamp(
-                    (kHazardWakeDistance - approach) /
-                        (kHazardWakeDistance - kHazardDeployDistance),
+                    (wake_distance - approach) /
+                        (wake_distance - kHazardDeployDistance),
                     0.0F,
                     1.0F);
                 if (obstacle.type == HazardType::fold_gate) {
                     add_fold_gate(obstacle, approach, progress);
-                } else {
+                } else if (obstacle.type == HazardType::bit_chasm) {
                     add_bit_chasm(obstacle, approach, progress);
+                } else {
+                    add_raster_sweeper(obstacle, approach, progress);
                 }
             }
         }
@@ -573,6 +579,10 @@ private:
             if (next->type == HazardType::bit_chasm) {
                 std::snprintf(next_text, sizeof(next_text),
                     "NEXT BIT CHASM %.1fM", approach);
+            } else if (next->type == HazardType::raster_sweeper) {
+                const char* direction = next->sweep_direction > 0 ? ">" : "<";
+                std::snprintf(next_text, sizeof(next_text),
+                    "NEXT RASTER %s %.1fM", direction, approach);
             } else {
                 const char* side = next->blocked_lane == 0
                     ? "L" : (next->blocked_lane == 2 ? "R" : "C");
@@ -709,6 +719,86 @@ private:
                  {center_x, 0.08F, z - 0.55F}, floor_warning);
         add_line({center_x + 0.72F, 0.08F, z - 1.15F},
                  {center_x, 0.08F, z - 0.55F}, floor_warning);
+    }
+
+    void add_raster_sweeper(
+        const RunnerObstacle& obstacle,
+        float approach,
+        float progress) {
+        constexpr Color cyan{0.035F, 0.55F, 0.68F};
+        constexpr Color amber{1.0F, 0.48F, 0.08F};
+        constexpr Color magenta{1.0F, 0.12F, 0.34F};
+        const float z = 2.5F + obstacle.distance;
+        const int active_lane = RunnerGame::raster_sweeper_lane(
+            obstacle, game_.state().elapsed_seconds);
+        const int previous_lane = RunnerGame::raster_sweeper_lane(
+            obstacle, game_.state().elapsed_seconds - 0.72F);
+        const float center_x = 2.5F +
+            static_cast<float>(active_lane - 1) * 2.65F;
+        const float previous_x = 2.5F +
+            static_cast<float>(previous_lane - 1) * 2.65F;
+        const Color frame = mix_color(cyan, amber, progress);
+        const float pulse = 0.88F + 0.12F *
+            std::sin(game_.state().elapsed_seconds * 8.0F);
+        const Color beam_base = mix_color(amber, magenta,
+            smooth_step(0.48F, 1.0F, progress));
+        const Color beam{
+            beam_base.r * pulse,
+            beam_base.g * pulse,
+            beam_base.b * pulse
+        };
+
+        constexpr float corridor_left = -1.30F;
+        constexpr float corridor_right = 6.30F;
+        // A suspended scanner frame spans the corridor; the active raster
+        // curtain occupies only one lane, leaving two readable escape lanes.
+        add_line({corridor_left, 0.08F, z}, {corridor_left, 4.02F, z}, frame);
+        add_line({corridor_right, 0.08F, z}, {corridor_right, 4.02F, z}, frame);
+        add_line({corridor_left, 4.02F, z}, {corridor_right, 4.02F, z}, frame);
+        add_line({corridor_left, 3.80F, z - 0.08F},
+                 {corridor_right, 3.80F, z - 0.08F}, frame);
+
+        // Three status lamps make the currently threatened lane legible early.
+        for (int lane = 0; lane < 3; ++lane) {
+            const float marker_x = 2.5F +
+                static_cast<float>(lane - 1) * 2.65F;
+            const Color marker = lane == active_lane ? beam : cyan;
+            add_hinge(marker_x, 3.62F, z - 0.12F, marker);
+            add_line({marker_x - 0.22F, 3.38F, z - 0.12F},
+                     {marker_x + 0.22F, 3.38F, z - 0.12F}, marker);
+        }
+
+        const float left = center_x - 0.98F;
+        const float right = center_x + 0.98F;
+        add_line({left, 0.12F, z - 0.03F}, {left, 3.42F, z - 0.03F}, beam);
+        add_line({right, 0.12F, z - 0.03F}, {right, 3.42F, z - 0.03F}, beam);
+        add_line({left, 0.12F, z - 0.03F}, {right, 0.12F, z - 0.03F}, beam);
+        add_line({left, 3.42F, z - 0.03F}, {right, 3.42F, z - 0.03F}, beam);
+        for (int band = 0; band < 7; ++band) {
+            const float y = 0.34F + static_cast<float>(band) * 0.45F;
+            const float skew = (band % 2 == 0) ? 0.12F : -0.12F;
+            add_line({left + skew, y, z - 0.05F},
+                     {right - skew, y, z - 0.05F}, beam);
+        }
+
+        // A short overhead trace communicates the scan direction.
+        if (previous_lane != active_lane) {
+            add_line({previous_x, 3.91F, z - 0.22F},
+                     {center_x, 3.91F, z - 0.10F}, amber);
+        }
+        const float arrow_sign = obstacle.sweep_direction > 0 ? 1.0F : -1.0F;
+        add_line({center_x - arrow_sign * 0.34F, 3.92F, z - 0.10F},
+                 {center_x, 3.92F, z - 0.10F}, beam);
+        add_line({center_x, 3.92F, z - 0.10F},
+                 {center_x - arrow_sign * 0.16F, 4.06F, z - 0.10F}, beam);
+        add_line({center_x, 3.92F, z - 0.10F},
+                 {center_x - arrow_sign * 0.16F, 3.78F, z - 0.10F}, beam);
+
+        const Color floor_warning = approach > 5.0F ? amber : magenta;
+        add_line({center_x - 0.74F, 0.085F, z - 1.15F},
+                 {center_x, 0.085F, z - 0.52F}, floor_warning);
+        add_line({center_x + 0.74F, 0.085F, z - 1.15F},
+                 {center_x, 0.085F, z - 0.52F}, floor_warning);
     }
 
     void add_bit_chasm(
