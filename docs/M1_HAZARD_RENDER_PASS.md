@@ -26,6 +26,13 @@ The runner pass mirrors the upstream camera transform and perspective constants 
 - Broken amber/cyan edge rails and deterministic falling vector fragments communicate depth.
 - It remains a lane-blocking obstacle. No jump input is required.
 
+### RASTER_SWEEPER
+
+- A suspended vector frame spans the corridor, with three lane indicators on its upper rail.
+- A seven-band laser curtain occupies one lane at a time and sweeps left → centre → right → centre, then repeats; seed-derived direction can reverse the sequence.
+- The active lane is amber during warning and shifts toward magenta as the player approaches. A short overhead trace and floor chevrons communicate direction and current danger.
+- The scan begins waking about 20 world units before the collision plane. Collision is checked at the forward-plane crossing against the active lane at simulation time; the other two lanes remain safe.
+
 ### BIT_DISINTEGRATION
 
 - On a confirmed simulation collision, a short wireframe avatar flash precedes a burst of square vector fragments.
@@ -34,13 +41,13 @@ The runner pass mirrors the upstream camera transform and perspective constants 
 
 ## Determinism and warning window
 
-The two hazard families alternate by obstacle ID, not by an additional RNG call. Existing SplitMix64 lane and spacing generation therefore retains its random stream.
+The three hazard families use the existing seeded hazard roll, without consuming additional random values: BIT_CHASM occupies 28% of eligible rolls, RASTER_SWEEPER occupies the next 24%, and remaining rolls produce FOLD_GATE. After a chasm, at least two actual FOLD_GATE obstacles must spawn before another chasm can be selected. The sweeper direction and phase offset are derived from already-generated obstacle data.
 
-The visual wake begins about 14 world units before the obstacle plane and the mechanism finishes deploying around 4 units before it. The collision plane and lane rules are still determined exclusively by `RunnerGame`.
+FOLD_GATE and BIT_CHASM wake about 14 world units before their obstacle plane; RASTER_SWEEPER wakes about 20 units ahead to give its moving warning time to be read. The active raster lane and its collision decision are both derived from the same fixed-step simulation clock and `RunnerGame::raster_sweeper_lane`.
 
 ## Verification state
 
-- Core smoke tests now check hazard-family ordering and that the crash effect timer advances while world simulation remains frozen.
+- Core smoke tests check seeded hazard generation, the two-FOLD_GATE chasm cooldown, both sweep directions and the left-centre-right-centre phase sequence, replay round-trip, and that the crash effect timer advances while world simulation remains frozen.
 - A Linux desktop CMake build is added to CI to compile the full SDL/OpenGL application and the new renderer.
 - Android build, actual device visibility/readability, touch-overlay occlusion, and frame-time profiling remain pending.
 - The M1 pass still has no wallet, Nano RPC, work-generation, payout, or online dependency.
