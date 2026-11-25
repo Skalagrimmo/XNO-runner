@@ -91,6 +91,16 @@ int main() {
     assert(first.config().speed_ramp_delay_seconds == 12.0F);
     assert(first.config().speed_ramp_per_second == 0.065F);
 
+    // The shipped run seed must introduce the new scanner directly after the
+    // opening FOLD_GATE, rather than hiding it hundreds of metres into a run.
+    constexpr std::uint64_t app_seed = 0x584E4F52554E4E52ULL;
+    RunnerGame introduction(app_seed);
+    introduction.start();
+    step_many(introduction, 24);
+    assert(introduction.obstacles().size() >= 2);
+    assert(introduction.obstacles()[0].type == HazardType::fold_gate);
+    assert(introduction.obstacles()[1].type == HazardType::raster_sweeper);
+
     // Fixed-seed generation is varied rather than alternating every obstacle.
     RunnerConfig pattern_config = compact_test_config();
     pattern_config.obstacle_first_distance = 0.0F;
