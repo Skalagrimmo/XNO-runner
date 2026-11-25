@@ -63,7 +63,7 @@ Only BIT_CHASM owns this two-stage action. It is not a universal dodge, jump, or
 
 **Silhouette:** a suspended axle with two or three long vector bars. It rotates or sweeps through the corridor like a scanning machine. Thin secondary lines trail its movement.
 
-**Gameplay:** later timing hazard. Requires either a safe-phase opening or a lane pattern that can be validated deterministically.
+**Gameplay:** implemented timing hazard. One lane is active at a time while the scan curtain advances left → centre → right → centre (or the reverse). The active lane at the collision plane is calculated from fixed simulation time, and the other two lanes remain safe. The visual cue exposes the current lane and sweep direction.
 
 ### E. Data mine — DATA_MINE
 
@@ -98,8 +98,8 @@ The effect is presentation only. It must not determine the collision, alter scor
 1. FOLD_GATE: first visible hazard; two hinged arms and a crossbar, one lane blocked.
 2. BIT_CHASM: second visible hazard; removable floor panels and a broken edge outline, initially lane-blocking only.
 3. BIT_DISINTEGRATION: crash presentation using the confirmed collision obstacle ID.
-4. IRIS_GATE: alternate mechanical silhouette.
-5. RASTER_SWEEPER and DATA_MINE: later variety after timing and readability are tested.
+4. RASTER_SWEEPER: moving-lane timing hazard, now implemented in the M1 prototype.
+5. IRIS_GATE and DATA_MINE: later variety after timing and readability are tested.
 
 ## 6. Acceptance criteria
 
@@ -107,6 +107,7 @@ The effect is presentation only. It must not determine the collision, alter scor
 - Warning → deployment → active → passed states are visually distinct.
 - The same seed and simulation tick reproduce the same hazard geometry.
 - FOLD_GATE's blocked lane is readable before its collision window.
+- RASTER_SWEEPER's active lane and direction are visible before its collision plane, and simulation collision matches the rendered phase.
 - BIT_CHASM visibly spans all three lanes and is not avoidable through lateral movement.
 - The first contextual press stabilizes a plate in the current lane and freezes forward distance.
 - The second contextual press completes the teleport to solid ground before the fixed timer expires.
