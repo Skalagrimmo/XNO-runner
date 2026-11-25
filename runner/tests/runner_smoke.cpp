@@ -291,11 +291,49 @@ int main() {
         recorder.step(recorded_game, input);
     };
 
-    const auto recorded_first_fold = recorded_game.obstacles().front();
-    const int replay_safe_delta = recorded_first_fold.blocked_lane == 1 ? -1 : 0;
+    const auto replay_obstacles = recorded_game.obstacles();
+    const auto replay_chasm = std::find_if(
+        replay_obstacles.begin(), replay_obstacles.end(),
+        [](const auto& obstacle) {
+            return obstacle.type == HazardType::bit_chasm;
+        });
+    assert(replay_chasm != replay_obstacles.end());
+    const std::uint64_t replay_chasm_id = replay_chasm->id;
+
     record_step({.start = true});
-    if (replay_safe_delta != 0) {
-        record_step({.lane_delta = replay_safe_delta});
+    // Script the same one-hazard-at-a-time lane decisions used by the gameplay
+    // helper, while recording every steering input into the replay trace.
+    for (const auto& obstacle : replay_obstacles) {
+        if (obstacle.id == replay_chasm_id) break;
+        while (obstacle.distance - recorded_game.state().distance > 8.0F) {
+            record_step({});
+            assert(recorded_game.state().status == RunStatus::running);
+        }
+        int blocked_lane = -1;
+        if (obstacle.type == HazardType::fold_gate) {
+            blocked_lane = obstacle.blocked_lane;
+        } else if (obstacle.type == HazardType::raster_sweeper) {
+            const float predicted_crossing_time = recorded_game.state().elapsed_seconds +
+                (obstacle.distance - recorded_game.state().distance) /
+                    std::max(recorded_game.state().speed, 0.1F);
+            blocked_lane = RunnerGame::raster_sweeper_lane(
+                obstacle, predicted_crossing_time);
+        }
+        if (blocked_lane >= 0 && recorded_game.state().target_lane == blocked_lane) {
+            const int safe_lane = blocked_lane == 1 ? 0 : 1;
+            const int delta = safe_lane > recorded_game.state().target_lane ? 1 : -1;
+            record_step({.lane_delta = delta});
+            assert(recorded_game.state().status == RunStatus::running);
+        }
+        const float clear_distance = obstacle.distance +
+            recorded_game.config().collision_half_depth + 0.25F;
+        for (int frame = 0;
+             frame < 240 && recorded_game.state().distance < clear_distance;
+             ++frame) {
+            record_step({});
+            assert(recorded_game.state().status == RunStatus::running);
+        }
+        assert(recorded_game.state().distance >= clear_distance);
     }
 
     for (int frame = 0;
