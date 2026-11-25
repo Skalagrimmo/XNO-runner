@@ -17,6 +17,7 @@ using xno::runner::RunStatus;
 using xno::runner::RunnerGame;
 using xno::runner::RunnerConfig;
 using xno::runner::RunnerInput;
+using xno::runner::RunnerObstacle;
 
 namespace {
 constexpr float kStep = 1.0F / 60.0F;
@@ -100,7 +101,8 @@ int main() {
     assert(pattern_a.obstacles().size() >= 16);
     assert(pattern_a.obstacles().size() == pattern_b.obstacles().size());
     std::size_t chasm_count = 0;
-    std::size_t previous_chasm_index = 0;
+    std::size_t raster_count = 0;
+    std::size_t fold_gates_since_chasm = 0;
     bool has_previous_chasm = false;
     for (std::size_t i = 0; i < pattern_a.obstacles().size(); ++i) {
         const auto& a = pattern_a.obstacles()[i];
@@ -108,15 +110,39 @@ int main() {
         assert(a.distance == b.distance);
         assert(a.blocked_lane == b.blocked_lane);
         assert(a.type == b.type);
+        assert(a.sweep_direction == b.sweep_direction);
+        assert(a.sweep_phase_offset == b.sweep_phase_offset);
         if (a.type == HazardType::bit_chasm) {
             ++chasm_count;
-            assert(!has_previous_chasm || i >= previous_chasm_index + 3);
-            previous_chasm_index = i;
+            assert(!has_previous_chasm || fold_gates_since_chasm >= 2);
+            fold_gates_since_chasm = 0;
             has_previous_chasm = true;
+        } else if (a.type == HazardType::fold_gate) {
+            ++fold_gates_since_chasm;
+        } else if (a.type == HazardType::raster_sweeper) {
+            ++raster_count;
+            assert(a.sweep_direction == -1 || a.sweep_direction == 1);
+            assert(a.sweep_phase_offset >= 0.0F);
+            assert(a.sweep_phase_offset < 0.72F);
         }
     }
     assert(chasm_count >= 2);
     assert(chasm_count <= 6);
+    assert(raster_count >= 2);
+
+    // RASTER_SWEEPER traverses left-centre-right-centre, then repeats.
+    RunnerObstacle sweep{};
+    sweep.type = HazardType::raster_sweeper;
+    sweep.sweep_direction = 1;
+    assert(RunnerGame::raster_sweeper_lane(sweep, 0.10F) == 0);
+    assert(RunnerGame::raster_sweeper_lane(sweep, 0.73F) == 1);
+    assert(RunnerGame::raster_sweeper_lane(sweep, 1.45F) == 2);
+    assert(RunnerGame::raster_sweeper_lane(sweep, 2.17F) == 1);
+    assert(RunnerGame::raster_sweeper_lane(sweep, 2.89F) == 0);
+    sweep.sweep_direction = -1;
+    assert(RunnerGame::raster_sweeper_lane(sweep, 0.10F) == 2);
+    assert(RunnerGame::raster_sweeper_lane(sweep, 0.73F) == 1);
+    assert(RunnerGame::raster_sweeper_lane(sweep, 1.45F) == 0);
 
     // Keep base speed for the first 12 seconds, then ramp gently.
     RunnerConfig ramp_config{};
@@ -297,7 +323,7 @@ int main() {
     assert(xno::runner::read_runner_replay(
         replay_stream, decoded_replay, &replay_error));
     assert(decoded_replay.format_version == 2);
-    assert(decoded_replay.ruleset_version == 2);
+    assert(decoded_replay.ruleset_version == 3);
     assert(decoded_replay.config.speed_ramp_delay_seconds == 12.0F);
     assert(decoded_replay.frame_count == captured_replay.frame_count);
     assert(decoded_replay.events.size() == captured_replay.events.size());
@@ -307,9 +333,9 @@ int main() {
     assert(replay_verification.success);
     assert(replay_verification.frames_processed == captured_replay.frame_count);
 
-    // A replay recorded under the previous mechanics must not be misread as ruleset 2.
+    // Replays from ruleset 2 predate the moving sweeper and must be rejected.
     auto outdated_ruleset = decoded_replay;
-    outdated_ruleset.ruleset_version = 1;
+    outdated_ruleset.ruleset_version = 2;
     const auto outdated_verification =
         xno::runner::verify_runner_replay(outdated_ruleset);
     assert(!outdated_verification.success);
