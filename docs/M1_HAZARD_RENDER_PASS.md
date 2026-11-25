@@ -41,7 +41,7 @@ The runner pass mirrors the upstream camera transform and perspective constants 
 
 ## Determinism and warning window
 
-The three hazard families use the existing seeded hazard roll, without consuming additional random values: BIT_CHASM occupies 28% of eligible rolls, RASTER_SWEEPER occupies the next 24%, and remaining rolls produce FOLD_GATE. After a chasm, at least two actual FOLD_GATE obstacles must spawn before another chasm can be selected. The sweeper direction and phase offset are derived from already-generated obstacle data.
+The opening obstacle is a FOLD_GATE and the second is a guaranteed introductory RASTER_SWEEPER so players encounter the new timing mechanic early. Later, the existing seeded hazard roll selects BIT_CHASM for 28% of eligible rolls, RASTER_SWEEPER for the next 24%, and FOLD_GATE otherwise, without extra random draws. At least two actual FOLD_GATE obstacles must spawn between consecutive chasms. The sweeper direction and phase offset are derived from already-generated obstacle data.
 
 FOLD_GATE and BIT_CHASM wake about 14 world units before their obstacle plane; RASTER_SWEEPER wakes about 20 units ahead to give its moving warning time to be read. The active raster lane and its collision decision are both derived from the same fixed-step simulation clock and `RunnerGame::raster_sweeper_lane`.
 
