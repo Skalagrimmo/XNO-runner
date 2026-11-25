@@ -2,7 +2,7 @@
 
 **File extension:** \`.xnr\`  
 **Format version:** 2  
-**Simulation ruleset:** 2  
+**Simulation ruleset:** 3  
 **Purpose:** deterministic simulation reproduction and regression diagnosis
 
 ## What a replay contains
@@ -35,7 +35,7 @@ The format is plain UTF-8 text, one record per line:
 
 The 14 configuration values (including the 12-second speed-ramp delay) follow the \`RunnerConfig\` member order in \`runner_game.hpp\`. Boolean event fields are \`0\` or \`1\`. Event frame indexes are zero-based; a checkpoint at frame count 60 describes the state after the first 60 calls to \`RunnerGame::step\`.
 
-Ruleset 2 uses a 34 m opening runway, randomized 28–40 m obstacle spacing, a 12-second base-speed plateau followed by a 0.065 m/s-per-second speed ramp, and a seeded 28% BIT_CHASM chance. At least two FOLD_GATE obstacles separate consecutive chasms.
+Ruleset 3 keeps the 34 m opening runway, randomized 28–40 m obstacle spacing, and 12-second base-speed plateau followed by a 0.065 m/s-per-second speed ramp. Eligible seeded hazard rolls choose BIT_CHASM at 28%, RASTER_SWEEPER at 24%, and FOLD_GATE otherwise. At least two actual FOLD_GATE obstacles separate consecutive chasms. The moving sweeper follows a deterministic left-centre-right-centre lane cycle (or its reverse), with a seed-derived phase offset.
 
 The writer uses enough decimal precision to round-trip each 32-bit float. The reader rejects unknown format/ruleset versions, malformed fields, out-of-range events, and unordered checkpoints.
 
@@ -47,7 +47,7 @@ The writer uses enough decimal precision to round-trip each 32-bit float. The re
 - Run seed and random-generator state.
 - Next obstacle ID, spawn distance, and the BIT_CHASM spacing cooldown.
 - Every player/run state field, including the BIT_CHASM plate timer.
-- The current obstacle list and each obstacle's resolution state.
+- The current obstacle list, including each sweeper's direction and phase offset, and each obstacle's resolution state.
 
 At each checkpoint the verifier constructs a fresh \`RunnerGame\`, applies the recorded inputs at the recorded fixed-step frames, and compares the resulting 64-bit hash. On the first mismatch it reports the exact completed frame count plus expected and actual hashes.
 
